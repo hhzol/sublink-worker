@@ -64,7 +64,7 @@ export function buildSelectorMembers({ proxyList = [], translator, groupByCountr
     return uniqueNames(base);
 }
 
-export function buildCustomRuleMembers({ proxyList = [], translator, manualGroupName, includeAutoSelect = true }) {
+export function buildCustomRuleMembers({ proxyList = [], translator, manualGroupName, countryGroupNames = [], includeAutoSelect = true }) {
     if (!translator) {
         throw new Error('buildCustomRuleMembers requires a translator function');
     }
