@@ -41,8 +41,9 @@ export function buildNodeSelectMembers({ proxyList = [], translator, groupByCoun
 }
 
 const AD_BLOCK_GROUP_NAME = '🛑 广告拦截';
+const AI_GROUP_NAME = '💬 AI 服务';
 
-export function buildSelectorMembers({ proxyList = [], translator, groupByCountry = false, manualGroupName, countryGroupNames = [], includeAutoSelect = true, groupName }) {
+export function buildSelectorMembers({ proxyList = [], translator, groupByCountry = false, manualGroupName, countryGroupNames = [], customGroupNames = [], includeAutoSelect = true, groupName }) {
     if (!translator) {
         throw new Error('buildSelectorMembers requires a translator function');
     }
@@ -51,6 +52,7 @@ export function buildSelectorMembers({ proxyList = [], translator, groupByCountr
             translator('outboundNames.Node Select'),
             ...(includeAutoSelect ? [translator('outboundNames.Auto Select')] : []),
             ...(manualGroupName ? [manualGroupName] : []),
+            ...(groupName === AI_GROUP_NAME ? customGroupNames : []),
             ...(groupName !== AD_BLOCK_GROUP_NAME ? countryGroupNames : [])
         ]
         : [
