@@ -479,9 +479,9 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
             getName: proxy => this.getProxyName(proxy)
         });
 
-        const providerNames = this.getAllProviderNames(); // 只获取一次
+        const providerNames = this.getAllProviderNames();
 
-        // Provider 模式补充
+        // Provider 模式补充（若提供者节点名称已收集）
         if (providerNames.length > 0 && this.providerNodeNames?.length > 0) {
             const providerCountryGroups = groupProxiesByCountry(this.providerNodeNames, {
                 getName: name => name
@@ -495,7 +495,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
 
         const existingNames = new Set((this.config['proxy-groups'] || []).map(g => normalizeGroupName(g?.name)).filter(Boolean));
 
-        // 手动切换组
+        // 手动切换组（所有代理的集合）
         const manualProxyNames = proxies.map(p => p?.name).filter(Boolean);
         const manualGroupName = manualProxyNames.length > 0 ? this.t('outboundNames.Manual Switch') : null;
         if (manualGroupName) {
@@ -514,41 +514,47 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
             }
         }
 
-        // 国家组排序：优先 COUNTRY_DATA 顺序，自定义分组排最后
+        // 初始化分组名数组
+        this.countryGroupNames = [];
+        this.customGroupNames = [];
+
+        // 确定排序：先标准国家（按 COUNTRY_DATA 顺序），再自定义（按 CUSTOM_DATA 顺序）
         const countryOrder = Object.keys(COUNTRY_DATA);
         const customOrder = Object.keys(CUSTOM_DATA);
-        const countries = Object.keys(countryGroups).sort((a, b) => {
+        const sortedCountries = Object.keys(countryGroups).sort((a, b) => {
             const idxA = countryOrder.indexOf(a);
             const idxB = countryOrder.indexOf(b);
             if (idxA !== -1 && idxB !== -1) return idxA - idxB;
             if (idxA !== -1) return -1;
             if (idxB !== -1) return 1;
-            // 两者都是自定义分组，按自定义顺序排序
+            // 两者都是自定义，按 CUSTOM_DATA 顺序
             return customOrder.indexOf(a) - customOrder.indexOf(b);
         });
 
-        const countryGroupNames = [];
-
-        countries.forEach(country => {
-            const { emoji, name, aliases, exclude, proxies } = countryGroups[country];
+        sortedCountries.forEach(countryCode => {
+            const { emoji, name, aliases, exclude, proxies: memberProxies } = countryGroups[countryCode];
             const groupName = `${emoji} ${name}`;
             const norm = normalizeGroupName(groupName);
             if (existingNames.has(norm)) {
-                countryGroupNames.push(groupName);
+                // 若已存在，仍可能需收集组名（防止重复收集）
+                if (CUSTOM_DATA[countryCode]) {
+                    this.customGroupNames.push(groupName);
+                } else {
+                    this.countryGroupNames.push(groupName);
+                }
                 return;
             }
 
-            // 2. 检查组是否有可用成员（手动代理或 provider）
-            const hasMembers = (proxies && proxies.length > 0) || providerNames.length > 0;
+            // 检查组是否可用：有手动代理 或 有 provider
+            const hasMembers = (memberProxies && memberProxies.length > 0) || providerNames.length > 0;
             if (!hasMembers) {
-                // 空组跳过（避免后续验证失败）
-                return;
+                return; // 跳过空组
             }
 
             const group = {
                 name: groupName,
                 type: 'url-test',
-                proxies: proxies || [],
+                proxies: memberProxies || [],
                 url: 'https://www.gstatic.com/generate_204',
                 interval: 300,
                 lazy: false
@@ -568,24 +574,34 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
 
             this.config['proxy-groups'].push(group);
             existingNames.add(norm);
-            countryGroupNames.push(groupName);
+
+            // 根据 countryCode 判断是标准国家还是自定义，分别存入
+            if (CUSTOM_DATA[countryCode]) {
+                this.customGroupNames.push(groupName);
+            } else {
+                this.countryGroupNames.push(groupName);
+            }
         });
 
-        // 更新 Node Select 组
+        // 更新 Node Select 组（若存在）
         const nodeSelectGroup = this.config['proxy-groups'].find(g => g && g.name === this.t('outboundNames.Node Select'));
         if (nodeSelectGroup && Array.isArray(nodeSelectGroup.proxies)) {
             const rebuilt = buildNodeSelectMembers({
-                proxyList: this.getProxyList(), // 传入完整列表
+                proxyList: this.getProxyList(),
                 translator: this.t,
                 groupByCountry: true,
                 manualGroupName,
-                countryGroupNames,
+                customGroupNames: this.customGroupNames,   // 传入自定义分组
+                countryGroupNames: this.countryGroupNames, // 传入标准国家分组
                 includeAutoSelect: this.shouldIncludeAutoSelectGroup(this.getProxyList())
             });
             nodeSelectGroup.proxies = rebuilt;
+            // 保留 use 字段（若有 provider）
+            if (providerNames.length > 0 && !nodeSelectGroup.use) {
+                nodeSelectGroup.use = providerNames;
+            }
         }
 
-        this.countryGroupNames = countryGroupNames;
         this.manualGroupName = manualGroupName;
     }
     /**
