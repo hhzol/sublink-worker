@@ -16,6 +16,7 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         this.selectedRules = selectedRules;
         this.customRules = customRules;
         this.countryGroupNames = [];
+        this.customGroupNames = [];
         this.manualGroupName = null;
         this.enableClashUI = enableClashUI;
         this.externalController = externalController;
@@ -185,6 +186,7 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             groupByCountry: this.groupByCountry,
             manualGroupName: this.manualGroupName,
             countryGroupNames: this.countryGroupNames,
+            customGroupNames: this.customGroupNames,
             includeAutoSelect,
             includeReject: false
         });
@@ -211,6 +213,7 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             groupByCountry: this.groupByCountry,
             manualGroupName: this.manualGroupName,
             countryGroupNames: this.countryGroupNames,
+            customGroupNames: this.customGroupNames,
             includeAutoSelect: this.includeAutoSelect && this.hasAutoSelectCandidates(proxyList),
             includeReject: false
         });
@@ -246,6 +249,7 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
                     translator: this.t,
                     manualGroupName: this.manualGroupName,
                     countryGroupNames: this.countryGroupNames,
+                    customGroupNames: this.customGroupNames,
                     includeAutoSelect
                 });
                 if (this.hasOutboundTag(rule.name)) return;
