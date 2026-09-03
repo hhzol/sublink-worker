@@ -246,8 +246,7 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
                     proxyList,
                     translator: this.t,
                     manualGroupName: this.manualGroupName,
-                    includeAutoSelect,
-                    includeReject: false
+                    includeAutoSelect
                 });
                 if (this.hasOutboundTag(rule.name)) return;
                 this.config.outbounds.push({
