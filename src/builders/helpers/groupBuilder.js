@@ -72,6 +72,6 @@ export function buildCustomRuleMembers({ proxyList = [], translator, manualGroup
         translator('outboundNames.Node Select'),
         ...(includeAutoSelect ? [translator('outboundNames.Auto Select')] : []),
         ...(manualGroupName ? [manualGroupName] : []),
-        ...proxyList
+        ...countryGroupNames
     ]);
 }
