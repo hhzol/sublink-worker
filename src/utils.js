@@ -344,11 +344,13 @@ export function parseArray(value) {
 	return String(value)
 		.split(',')
 		.map(entry => entry.trim())
-		.filter(entry => entry.length > 0);
+		.filter(entry => entry.length > 0);	
 }
 
 export const COUNTRY_DATA = {
-	'cloudflare': { name: 'cloudflare', emoji: '🎯', aliases: ['cloudflare'] },
+	'cloudflare': { name: 'cloudflare', emoji: '🌥️', aliases: ['cloudflare'] },
+	'airport': { name: 'airport', emoji: '🎯', aliases: ['B Group'] },
+	'ipv6': { name: 'CMCC-IPV6', emoji: '🖁', aliases: ['ipv6'] },
 	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'Hong Kong', 'HK'] },
 	'TW': { name: 'Taiwan', emoji: '🇹🇼', aliases: ['台湾', 'Taiwan', 'TW'] },
 	'JP': { name: 'Japan', emoji: '🇯🇵', aliases: ['日本', 'Japan', 'JP'] },
