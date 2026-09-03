@@ -54,7 +54,7 @@ export function buildSelectorMembers({ proxyList = [], translator, groupByCountr
             translator('outboundNames.Node Select'),
             ...proxyList
         ];
-    return withDirectReject(base, { includeReject });
+    return uniqueNames(base);
 }
 
 export function buildCustomRuleMembers({ proxyList = [], translator, manualGroupName, includeAutoSelect = true }) {
