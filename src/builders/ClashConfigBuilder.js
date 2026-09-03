@@ -1,5 +1,5 @@
 import yaml from 'js-yaml';
-import { CLASH_CONFIG, generateRules, generateClashRuleSets, getOutbounds, PREDEFINED_RULE_SETS, DIRECT_DEFAULT_RULES } from '../config/index.js';
+import { CLASH_CONFIG, generateRules, generateClashRuleSets, DIRECT_DEFAULT_RULES } from '../config/index.js';
 import { BaseConfigBuilder } from './BaseConfigBuilder.js';
 import { deepCopy, groupProxiesByCountry, buildCountryNameFilter, buildCountryExcludeFilter, CUSTOM_DATA, COUNTRY_DATA } from '../utils.js';
 import { addProxyWithDedup } from './helpers/proxyHelpers.js';
@@ -469,16 +469,20 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
     }
 
     addCountryGroups() {
+        // 1. 如果未启用按国家分组，直接返回
+        if (!this.groupByCountry) {
+            return;
+        }
+
         const proxies = this.getProxies();
         const countryGroups = groupProxiesByCountry(proxies, {
             getName: proxy => this.getProxyName(proxy)
         });
 
-        // Provider mode leaves no inline proxies, but mihomo can filter provider
-        // members per group (`use` + `filter`), so enumerate countries from the
-        // names collected at fetch time and reference the providers instead.
-        const providerNames = this.getAllProviderNames();
-        if (providerNames.length > 0 && this.providerNodeNames.length > 0) {
+        const providerNames = this.getAllProviderNames(); // 只获取一次
+
+        // Provider 模式补充
+        if (providerNames.length > 0 && this.providerNodeNames?.length > 0) {
             const providerCountryGroups = groupProxiesByCountry(this.providerNodeNames, {
                 getName: name => name
             });
@@ -491,6 +495,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
 
         const existingNames = new Set((this.config['proxy-groups'] || []).map(g => normalizeGroupName(g?.name)).filter(Boolean));
 
+        // 手动切换组
         const manualProxyNames = proxies.map(p => p?.name).filter(Boolean);
         const manualGroupName = manualProxyNames.length > 0 ? this.t('outboundNames.Manual Switch') : null;
         if (manualGroupName) {
@@ -501,8 +506,6 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     type: 'select',
                     proxies: manualProxyNames
                 };
-                // Add 'use' field if we have proxy-providers
-                const providerNames = this.getAllProviderNames();
                 if (providerNames.length > 0) {
                     group.use = providerNames;
                 }
@@ -511,48 +514,68 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
             }
         }
 
+        // 国家组排序：优先 COUNTRY_DATA 顺序，自定义分组排最后
         const countryOrder = Object.keys(COUNTRY_DATA);
-        const countries = Object.keys(countryGroups).sort(
-            (a, b) => countryOrder.indexOf(a) - countryOrder.indexOf(b)
-        );
+        const customOrder = Object.keys(CUSTOM_DATA);
+        const countries = Object.keys(countryGroups).sort((a, b) => {
+            const idxA = countryOrder.indexOf(a);
+            const idxB = countryOrder.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            // 两者都是自定义分组，按自定义顺序排序
+            return customOrder.indexOf(a) - customOrder.indexOf(b);
+        });
+
         const countryGroupNames = [];
 
         countries.forEach(country => {
             const { emoji, name, aliases, exclude, proxies } = countryGroups[country];
             const groupName = `${emoji} ${name}`;
             const norm = normalizeGroupName(groupName);
-            if (!existingNames.has(norm)) {
-                const group = {
-                    name: groupName,
-                    type: 'url-test',
-                    proxies: proxies,
-                    url: 'https://www.gstatic.com/generate_204',
-                    interval: 300,
-                    lazy: false
-                };
-                // Add 'use' field if we have proxy-providers, narrowed to this
-                // country so provider members don't leak into every group
-                if (providerNames.length > 0) {
-                    group.use = providerNames;
-                    const filter = buildCountryNameFilter({ emoji, aliases });
-                    if (filter) {
-                        group.filter = filter;
-                    }
-                    const excludeFilter = buildCountryExcludeFilter({ exclude });
-                    if (excludeFilter) {
-                        group['exclude-filter'] = excludeFilter;
-                    }
-                }
-                this.config['proxy-groups'].push(group);
-                existingNames.add(norm);
+            if (existingNames.has(norm)) {
+                countryGroupNames.push(groupName);
+                return;
             }
+
+            // 2. 检查组是否有可用成员（手动代理或 provider）
+            const hasMembers = (proxies && proxies.length > 0) || providerNames.length > 0;
+            if (!hasMembers) {
+                // 空组跳过（避免后续验证失败）
+                return;
+            }
+
+            const group = {
+                name: groupName,
+                type: 'url-test',
+                proxies: proxies || [],
+                url: 'https://www.gstatic.com/generate_204',
+                interval: 300,
+                lazy: false
+            };
+
+            if (providerNames.length > 0) {
+                group.use = providerNames;
+                const filter = buildCountryNameFilter({ emoji, aliases });
+                if (filter) {
+                    group.filter = filter;
+                }
+                const excludeFilter = buildCountryExcludeFilter({ exclude });
+                if (excludeFilter) {
+                    group['exclude-filter'] = excludeFilter;
+                }
+            }
+
+            this.config['proxy-groups'].push(group);
+            existingNames.add(norm);
             countryGroupNames.push(groupName);
         });
 
+        // 更新 Node Select 组
         const nodeSelectGroup = this.config['proxy-groups'].find(g => g && g.name === this.t('outboundNames.Node Select'));
         if (nodeSelectGroup && Array.isArray(nodeSelectGroup.proxies)) {
             const rebuilt = buildNodeSelectMembers({
-                proxyList: [],
+                proxyList: this.getProxyList(), // 传入完整列表
                 translator: this.t,
                 groupByCountry: true,
                 manualGroupName,
@@ -561,10 +584,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
             });
             nodeSelectGroup.proxies = rebuilt;
         }
+
         this.countryGroupNames = countryGroupNames;
         this.manualGroupName = manualGroupName;
     }
-
     /**
      * Merge user-defined proxy groups with system-generated ones
      * Handles same-name groups by merging proxies/use fields and preserving user settings
