@@ -384,14 +384,15 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
         this.config['proxy-groups'].unshift(group);
     }
 
-    buildSelectGroupMembers(proxyList = []) {
+    buildSelectGroupMembers(proxyList = [], groupName) {
         return buildSelectorMembers({
             proxyList,
             translator: this.t,
             groupByCountry: this.groupByCountry,
             manualGroupName: this.manualGroupName,
             countryGroupNames: this.countryGroupNames,
-            includeAutoSelect: this.shouldIncludeAutoSelectGroup(proxyList)
+            includeAutoSelect: this.shouldIncludeAutoSelectGroup(proxyList),
+            groupName
         });
     }
 
@@ -400,8 +401,9 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
             if (outbound !== this.t('outboundNames.Node Select')) {
                 const name = this.t(`outboundNames.${outbound}`);
                 if (!this.hasProxyGroup(name)) {
-                    let proxies = this.buildSelectGroupMembers(proxyList);
+                    let proxies = this.buildSelectGroupMembers(proxyList, name);
                     // For rules that should default to DIRECT, move DIRECT to the front
+                    
                     if (DIRECT_DEFAULT_RULES.has(outbound)) {
                         proxies = ['DIRECT', ...proxies.filter(p => p !== 'DIRECT')];
                     }

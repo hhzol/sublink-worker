@@ -39,7 +39,9 @@ export function buildNodeSelectMembers({ proxyList = [], translator, groupByCoun
     return withDirectReject(base, { includeReject });
 }
 
-export function buildSelectorMembers({ proxyList = [], translator, groupByCountry = false, manualGroupName, countryGroupNames = [], includeAutoSelect = true, includeReject = true }) {
+const AD_BLOCK_GROUP_NAME = '🛑 广告拦截';
+
+export function buildSelectorMembers({ proxyList = [], translator, groupByCountry = false, manualGroupName, countryGroupNames = [], includeAutoSelect = true, groupName }) {
     if (!translator) {
         throw new Error('buildSelectorMembers requires a translator function');
     }
@@ -54,6 +56,11 @@ export function buildSelectorMembers({ proxyList = [], translator, groupByCountr
             translator('outboundNames.Node Select'),
             ...proxyList
         ];
+
+    if (groupName === AD_BLOCK_GROUP_NAME) {
+        return withDirectReject(base, { includeReject: true });
+    }
+
     return uniqueNames(base);
 }
 
