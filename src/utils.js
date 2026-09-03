@@ -348,6 +348,7 @@ export function parseArray(value) {
 }
 
 export const COUNTRY_DATA = {
+	'nonHK': { name: 'non Hong Kong', emoji: 'non', aliases: ['B Group'], exclude: ['USB'] },
 	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'Hong Kong', 'HK'] },
 	'TW': { name: 'Taiwan', emoji: '🇹🇼', aliases: ['台湾', 'Taiwan', 'TW'] },
 	'JP': { name: 'Japan', emoji: '🇯🇵', aliases: ['日本', 'Japan', 'JP'] },
@@ -385,8 +386,12 @@ export function parseCountryFromNodeName(nodeName) {
 	// (e.g. "Indonesia" before "India", "United States" before "US").
 	// Short aliases (<=3 chars, all ASCII, e.g. US, UK, HK) get \b word boundaries
 	// to prevent false positives like "plus" matching "US".
-	const allEntries = Object.values(COUNTRY_DATA).flatMap(c =>
-		c.aliases.map(alias => ({ alias, escaped: alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') }))
+	const allEntries = Object.entries(COUNTRY_DATA).flatMap(([code, c]) =>
+		c.aliases.map(alias => ({
+			code,
+			alias,
+			escaped: alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+		}))
 	);
 	allEntries.sort((a, b) => b.alias.length - a.alias.length);
 
@@ -397,21 +402,36 @@ export function parseCountryFromNodeName(nodeName) {
 		return escaped;
 	});
 
-	const regex = new RegExp(patterns.join('|'), 'i');
-	const match = nodeName.match(regex);
+	// 加上 'g' 标志，命中被排除的别名时可以继续往后找其他匹配
+	const regex = new RegExp(patterns.join('|'), 'gi');
+	const nameLower = nodeName.toLowerCase();
 
-	if (match) {
-		const matchedAlias = match[0];
-		for (const code in COUNTRY_DATA) {
-			if (COUNTRY_DATA[code].aliases.some(alias => alias.toLowerCase() === matchedAlias.toLowerCase())) {
-				return { code, ...COUNTRY_DATA[code] };
+	let match;
+	while ((match = regex.exec(nodeName)) !== null) {
+		const matchedAlias = match[0].toLowerCase();
+		const entry = allEntries.find(e => e.alias.toLowerCase() === matchedAlias);
+
+		if (entry) {
+			const countryData = COUNTRY_DATA[entry.code];
+			const excludeList = countryData.exclude || [];
+			const isExcluded = excludeList.some(keyword =>
+				nameLower.includes(keyword.toLowerCase())
+			);
+
+			if (!isExcluded) {
+				return { code: entry.code, ...countryData };
 			}
+			// 命中排除关键字，跳过这次匹配，继续尝试后面的内容
+		}
+
+		// 防止零宽匹配导致死循环
+		if (regex.lastIndex === match.index) {
+			regex.lastIndex++;
 		}
 	}
 
 	return null;
 }
-
 // Build a mihomo proxy-group `filter` regex matching node names of one country.
 // Mirrors the classification patterns in parseCountryFromNodeName (same escaping
 // and \b rules) so runtime filtering agrees with build-time grouping; the flag
@@ -421,6 +441,44 @@ export function buildCountryNameFilter({ emoji, aliases } = {}) {
 		const escaped = alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 		if (alias.length <= 3 && /^[A-Za-z]+$/.test(alias)) {
 			return `\\b${escaped}\\b`;
+		}
+		return escaped;
+	});
+	if (emoji) {
+		patterns.push(emoji);
+	}
+	if (patterns.length === 0) {
+		return null;
+	}
+	return `(?i)${patterns.join('|')}`;
+}
+
+// Build a mihomo proxy-group `exclude-filter` regex for a country's exclude keywords.
+// mihomo uses Go's RE2 engine, which does NOT support negative lookahead, so the
+// exclusion cannot be merged into `filter` — it must be its own regex passed to
+// mihomo's separate `exclude-filter` field.
+export function buildCountryExcludeFilter({ exclude } = {}) {
+	if (!Array.isArray(exclude) || exclude.length === 0) {
+		return null;
+	}
+	const patterns = exclude
+		.filter(keyword => typeof keyword === 'string' && keyword.trim() !== '')
+		.map(keyword => keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'));
+
+	if (patterns.length === 0) {
+		return null;
+	}
+	return `(?i)${patterns.join('|')}`;
+}
+// Build a mihomo proxy-group `filter` regex matching node names of one country.
+// Mirrors the classification patterns in parseCountryFromNodeName (same escaping
+// and \b rules) so runtime filtering agrees with build-time grouping; the flag
+// emoji is added because mihomo filters raw names, which often carry it.
+export function buildCountryNameFilter({ emoji, aliases } = {}) {
+	const patterns = (aliases || []).map(alias => {
+		const escaped = alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+		if (alias.length <= 3 && /^[A-Za-z]+$/.test(alias)) {
+			return `(?<![A-Za-z])${escaped}(?![A-Za-z])`;
 		}
 		return escaped;
 	});
