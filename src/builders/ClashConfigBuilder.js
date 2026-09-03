@@ -429,9 +429,9 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                 const name = this.t(`outboundNames.${rule.name}`);
                 if (!this.hasProxyGroup(name)) {
                     const proxies = buildCustomRuleMembers({
-                        proxyList,
                         translator: this.t,
                         manualGroupName: this.manualGroupName,
+                        countryGroupNames: this.countryGroupNames,
                         includeAutoSelect: this.shouldIncludeAutoSelectGroup(proxyList)
                     });
                     const group = {

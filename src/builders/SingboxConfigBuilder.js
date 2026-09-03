@@ -243,9 +243,9 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             this.customRules.forEach(rule => {
                 const includeAutoSelect = this.includeAutoSelect && this.hasAutoSelectCandidates(proxyList);
                 const selectorMembers = buildCustomRuleMembers({
-                    proxyList,
                     translator: this.t,
                     manualGroupName: this.manualGroupName,
+                    countryGroupNames: this.countryGroupNames,
                     includeAutoSelect
                 });
                 if (this.hasOutboundTag(rule.name)) return;

@@ -298,9 +298,9 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
             this.customRules.forEach(rule => {
                 if (this.hasProxyGroup(rule.name)) return;
                 const options = buildCustomRuleMembers({
-                    proxyList,
                     translator: this.t,
                     manualGroupName: this.manualGroupName,
+                    countryGroupNames: this.countryGroupNames,
                     includeAutoSelect: this.includeAutoSelect
                 });
                 this.config['proxy-groups'].push(
