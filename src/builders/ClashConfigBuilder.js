@@ -1,7 +1,7 @@
 import yaml from 'js-yaml';
 import { CLASH_CONFIG, generateRules, generateClashRuleSets, getOutbounds, PREDEFINED_RULE_SETS, DIRECT_DEFAULT_RULES } from '../config/index.js';
 import { BaseConfigBuilder } from './BaseConfigBuilder.js';
-import { deepCopy, groupProxiesByCountry, buildCountryNameFilter, buildCountryExcludeFilter } from '../utils.js';
+import { deepCopy, groupProxiesByCountry, buildCountryNameFilter, buildCountryExcludeFilter, COUNTRY_DATA } from '../utils.js';
 import { addProxyWithDedup } from './helpers/proxyHelpers.js';
 import { buildSelectorMembers, buildNodeSelectMembers, buildCustomRuleMembers, uniqueNames } from './helpers/groupBuilder.js';
 import { emitClashRules, sanitizeClashProxyGroups } from './helpers/clashConfigUtils.js';
@@ -508,7 +508,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
             }
         }
 
-        const countries = Object.keys(countryGroups).sort((a, b) => a.localeCompare(b));
+        const countryOrder = Object.keys(COUNTRY_DATA);
+        const countries = Object.keys(countryGroups).sort(
+            (a, b) => countryOrder.indexOf(a) - countryOrder.indexOf(b)
+        );
         const countryGroupNames = [];
 
         countries.forEach(country => {

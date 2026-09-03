@@ -350,7 +350,7 @@ export function parseArray(value) {
 
 export const COUNTRY_DATA = {
 	'cloudflare': { name: 'cloudflare', emoji: '🌥️', aliases: ['cloudflare'] },
-	'airport': { name: 'airport', emoji: '🎯', aliases: ['B Group'] },
+	'airport': { name: 'Airport', emoji: '🎯', aliases: ['B Group'] },
 	'ipv6': { name: 'CMCC-IPV6', emoji: '🖁', aliases: ['ipv6'] },
 	'nonhk': { name: 'nonhk', emoji: '🎱', aliases: ['B Group'], exclude: ['HongKong'] },
 	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'Hong Kong', 'HK'] },
