@@ -348,7 +348,7 @@ export function parseArray(value) {
 }
 
 export const COUNTRY_DATA = {
-	'nonHK': { name: 'non Hong Kong', emoji: 'non', aliases: ['B Group'], exclude: ['USB'] },
+	'airport': { name: 'airport', emoji: '🎯', aliases: ['B Group'], exclude: [''] },
 	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'Hong Kong', 'HK'] },
 	'TW': { name: 'Taiwan', emoji: '🇹🇼', aliases: ['台湾', 'Taiwan', 'TW'] },
 	'JP': { name: 'Japan', emoji: '🇯🇵', aliases: ['日本', 'Japan', 'JP'] },
