@@ -1,7 +1,6 @@
-
 import { SING_BOX_CONFIG, generateRuleSets, generateRules, getOutbounds, PREDEFINED_RULE_SETS, DIRECT_DEFAULT_RULES, REJECT_ACTION_RULES } from '../config/index.js';
 import { BaseConfigBuilder } from './BaseConfigBuilder.js';
-import { deepCopy, groupProxiesByCountry } from '../utils.js';
+import { deepCopy, groupProxiesByCountry, CUSTOM_DATA, COUNTRY_DATA } from '../utils.js';
 import { addProxyWithDedup } from './helpers/proxyHelpers.js';
 import { buildSelectorMembers as buildSelectorMemberList, buildNodeSelectMembers, buildCustomRuleMembers, uniqueNames } from './helpers/groupBuilder.js';
 import { normalizeGroupName } from './helpers/groupNameUtils.js';
@@ -272,66 +271,135 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         });
     }
 
+    // ============ 核心修改：addCountryGroups ============
     addCountryGroups() {
+        // 如果未启用按国家分组，直接返回
+        if (!this.groupByCountry) {
+            return;
+        }
+
         const proxies = this.getProxies();
         const countryGroups = groupProxiesByCountry(proxies, {
             getName: proxy => this.getProxyName(proxy)
         });
 
+        const providerTags = this.getAllProviderTags();
+
+        // Provider 模式补充（若提供者节点名称已收集）
+        if (providerTags.length > 0 && this.providerNodeNames?.length > 0) {
+            const providerCountryGroups = groupProxiesByCountry(this.providerNodeNames, {
+                getName: name => name
+            });
+            Object.keys(providerCountryGroups).forEach(country => {
+                if (!countryGroups[country]) {
+                    countryGroups[country] = { ...providerCountryGroups[country], proxies: [] };
+                }
+            });
+        }
+
         const existingTags = new Set((this.config.outbounds || []).map(o => normalizeGroupName(o?.tag)).filter(Boolean));
 
+        // 手动切换组（所有代理的集合）
         const manualProxyNames = proxies.map(p => p?.tag).filter(Boolean);
         const manualGroupName = manualProxyNames.length > 0 ? this.t('outboundNames.Manual Switch') : null;
         if (manualGroupName) {
             const manualNorm = normalizeGroupName(manualGroupName);
             if (!existingTags.has(manualNorm)) {
-                this.config.outbounds.push({
+                const group = {
                     type: 'selector',
                     tag: manualGroupName,
                     outbounds: manualProxyNames
-                });
+                };
+                if (providerTags.length > 0) {
+                    group.providers = providerTags;
+                }
+                this.config.outbounds.push(group);
                 existingTags.add(manualNorm);
             }
         }
 
-        const countries = Object.keys(countryGroups).sort((a, b) => a.localeCompare(b));
-        const countryGroupNames = [];
-        const includeAutoSelect = this.includeAutoSelect && this.hasAutoSelectCandidates();
+        // 初始化分组名数组
+        this.countryGroupNames = [];
+        this.customGroupNames = [];
 
-        countries.forEach(country => {
-            const { emoji, name, proxies: countryProxies } = countryGroups[country];
-            if (!countryProxies || countryProxies.length === 0) {
-                return;
-            }
-            const groupName = `${emoji} ${name}`;
-            const norm = normalizeGroupName(groupName);
-            if (!existingTags.has(norm)) {
-                this.config.outbounds.push({
-                    tag: groupName,
-                    type: 'urltest',
-                    outbounds: countryProxies
-                });
-                existingTags.add(norm);
-            }
-            countryGroupNames.push(groupName);
+        // 确定排序：先标准国家（按 COUNTRY_DATA 顺序），再自定义（按 CUSTOM_DATA 顺序）
+        const countryOrder = Object.keys(COUNTRY_DATA);
+        const customOrder = Object.keys(CUSTOM_DATA);
+        const sortedCountries = Object.keys(countryGroups).sort((a, b) => {
+            const idxA = countryOrder.indexOf(a);
+            const idxB = countryOrder.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return customOrder.indexOf(a) - customOrder.indexOf(b);
         });
 
+        sortedCountries.forEach(countryCode => {
+            const { emoji, name, aliases, exclude, proxies: memberProxies } = countryGroups[countryCode];
+            const groupName = `${emoji} ${name}`;
+            const norm = normalizeGroupName(groupName);
+            if (existingTags.has(norm)) {
+                // 若已存在，仍收集组名（防止重复收集）
+                if (CUSTOM_DATA[countryCode]) {
+                    this.customGroupNames.push(groupName);
+                } else {
+                    this.countryGroupNames.push(groupName);
+                }
+                return;
+            }
+
+            // 检查组是否可用：有手动代理 或 有 provider
+            const hasMembers = (memberProxies && memberProxies.length > 0) || providerTags.length > 0;
+            if (!hasMembers) {
+                return; // 跳过空组
+            }
+
+            const group = {
+                tag: groupName,
+                type: 'urltest',
+                outbounds: memberProxies || [],
+                url: 'https://www.gstatic.com/generate_204',
+                interval: '5m'
+            };
+
+            if (providerTags.length > 0) {
+                group.providers = providerTags;
+                // 注意：Sing-Box 不支持 filter/exclude-filter，因此 provider 成员将全部包含
+                // 如需精确过滤，可在解析节点时预分类，或使用自定义 provider 标签
+            }
+
+            this.config.outbounds.push(group);
+            existingTags.add(norm);
+
+            // 根据 countryCode 判断是标准国家还是自定义，分别存入
+            if (CUSTOM_DATA[countryCode]) {
+                this.customGroupNames.push(groupName);
+            } else {
+                this.countryGroupNames.push(groupName);
+            }
+        });
+
+        // 更新 Node Select 组（若存在）
         const nodeSelectTag = this.t('outboundNames.Node Select');
         const nodeSelectGroup = this.config.outbounds.find(o => normalizeGroupName(o?.tag) === normalizeGroupName(nodeSelectTag));
         if (nodeSelectGroup && Array.isArray(nodeSelectGroup.outbounds)) {
+            const includeAutoSelect = this.includeAutoSelect && this.hasAutoSelectCandidates(this.getProxyList());
             const rebuilt = buildNodeSelectMembers({
-                proxyList: [],
+                proxyList: this.getProxyList(),
                 translator: this.t,
                 groupByCountry: true,
                 manualGroupName,
-                countryGroupNames,
+                customGroupNames: this.customGroupNames,
+                countryGroupNames: this.countryGroupNames,
                 includeAutoSelect,
                 includeReject: false
             });
             nodeSelectGroup.outbounds = rebuilt;
+            if (providerTags.length > 0 && !nodeSelectGroup.providers) {
+                nodeSelectGroup.providers = providerTags;
+            }
         }
 
-        this.countryGroupNames = countryGroupNames;
         this.manualGroupName = manualGroupName;
     }
 
