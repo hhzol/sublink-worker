@@ -347,12 +347,13 @@ export function parseArray(value) {
 		.map(entry => entry.trim())
 		.filter(entry => entry.length > 0);	
 }
-
-export const COUNTRY_DATA = {
+export const CUSTOM_DATA = {
 	'cloudflare': { name: 'cloudflare', emoji: '🌥️', aliases: ['cloudflare'] },
 	'airport': { name: '机场节点', emoji: '🎯', aliases: ['B Group'] },
 	'ipv6': { name: 'CMCC-IPV6', emoji: '🖁', aliases: ['ipv6'] },
 	'nonhk': { name: '非香港节点', emoji: '🎱', aliases: ['B Group'], exclude: ['HongKong'] },
+};
+export const COUNTRY_DATA = {
 	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'Hong Kong', 'HK'] },
 	'TW': { name: 'Taiwan', emoji: '🇹🇼', aliases: ['台湾', 'Taiwan', 'TW'] },
 	'JP': { name: 'Japan', emoji: '🇯🇵', aliases: ['日本', 'Japan', 'JP'] },
@@ -385,6 +386,11 @@ export const COUNTRY_DATA = {
 	'AE': { name: 'United Arab Emirates', emoji: '🇦🇪', aliases: ['阿联酋', 'United Arab Emirates'] },
 };
 export function parseCountryFromNodeName(nodeName) {
+	for (const code in CUSTOM_DATA) {
+		if (nodeMatchesCountry(nodeName, CUSTOM_DATA[code])) {
+			return { code, ...CUSTOM_DATA[code] };
+		}
+	}
 	for (const code in COUNTRY_DATA) {
 		if (nodeMatchesCountry(nodeName, COUNTRY_DATA[code])) {
 			return { code, ...COUNTRY_DATA[code] };
@@ -393,16 +399,25 @@ export function parseCountryFromNodeName(nodeName) {
 	return null;
 }
 
-// 返回一个节点匹配到的【所有】国家条目，而不是只取第一个。
+// 返回一个节点匹配到的【所有】国家/自定义分组条目，而不是只取第一个。
 // groupProxiesByCountry 用这个来支持同一节点归入多个分组。
 export function parseAllCountriesFromNodeName(nodeName) {
 	const matches = [];
+	for (const code in CUSTOM_DATA) {
+		if (nodeMatchesCountry(nodeName, CUSTOM_DATA[code])) {
+			matches.push({ code, ...CUSTOM_DATA[code] });
+		}
+	}
 	for (const code in COUNTRY_DATA) {
 		if (nodeMatchesCountry(nodeName, COUNTRY_DATA[code])) {
 			matches.push({ code, ...COUNTRY_DATA[code] });
 		}
 	}
 	return matches;
+}
+
+export function isCustomGroupCode(code) {
+	return Object.prototype.hasOwnProperty.call(CUSTOM_DATA, code);
 }
 // Build a mihomo proxy-group `filter` regex matching node names of one country.
 // Mirrors the classification patterns in parseCountryFromNodeName (same escaping

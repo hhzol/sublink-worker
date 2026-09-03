@@ -21,7 +21,7 @@ export function withDirectReject(options = [], { includeReject = true } = {}) {
     ]);
 }
 
-export function buildNodeSelectMembers({ proxyList = [], translator, groupByCountry = false, manualGroupName, countryGroupNames = [], includeAutoSelect = true, includeReject = true }) {
+export function buildNodeSelectMembers({ proxyList = [], translator, groupByCountry = false, manualGroupName, customGroupNames = [], countryGroupNames = [], includeAutoSelect = true, includeReject = true }) {
     if (!translator) {
         throw new Error('buildNodeSelectMembers requires a translator function');
     }
@@ -30,6 +30,7 @@ export function buildNodeSelectMembers({ proxyList = [], translator, groupByCoun
         ? [
             ...(includeAutoSelect ? [autoName] : []),
             ...(manualGroupName ? [manualGroupName] : []),
+            ...customGroupNames,
             ...countryGroupNames
         ]
         : [
