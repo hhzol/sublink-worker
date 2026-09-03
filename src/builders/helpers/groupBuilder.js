@@ -51,7 +51,7 @@ export function buildSelectorMembers({ proxyList = [], translator, groupByCountr
             translator('outboundNames.Node Select'),
             ...(includeAutoSelect ? [translator('outboundNames.Auto Select')] : []),
             ...(manualGroupName ? [manualGroupName] : []),
-            ...countryGroupNames
+            ...(groupName !== AD_BLOCK_GROUP_NAME ? countryGroupNames : [])
         ]
         : [
             translator('outboundNames.Node Select'),
