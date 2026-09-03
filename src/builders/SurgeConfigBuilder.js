@@ -284,7 +284,7 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
                 }
                 // For rules that should default to DIRECT, move DIRECT to the front
                 if (DIRECT_DEFAULT_RULES.has(outbound)) {
-                    options = ['DIRECT', ...options.filter(p => p !== 'DIRECT')];
+                    options = ['DIRECT'];
                 }
                 this.config['proxy-groups'].push(
                     this.createProxyGroup(name, 'select', options)

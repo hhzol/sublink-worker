@@ -229,7 +229,7 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
                 }
                 // For rules that should default to DIRECT, move DIRECT to the front
                 if (DIRECT_DEFAULT_RULES.has(outbound)) {
-                    selectorMembers = ['DIRECT', ...selectorMembers.filter(p => p !== 'DIRECT')];
+                    selectorMembers = ['DIRECT'];
                 }
                 this.config.outbounds.push({
                     type: "selector",

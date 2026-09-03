@@ -408,7 +408,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     // For rules that should default to DIRECT, move DIRECT to the front
                     
                     if (DIRECT_DEFAULT_RULES.has(outbound)) {
-                        proxies = ['DIRECT', ...proxies.filter(p => p !== 'DIRECT')];
+                        proxies = ['DIRECT'];
                     }
                     const group = {
                         type: "select",
