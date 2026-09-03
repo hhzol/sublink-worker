@@ -198,15 +198,16 @@ export function groupProxiesByCountry(proxies, { getName } = {}) {
 		if (!proxyName) {
 			return;
 		}
-		const countryInfo = parseCountryFromNodeName(proxyName);
-		if (!countryInfo) {
-			return;
-		}
-		const { name } = countryInfo;
-		if (!grouped[name]) {
-			grouped[name] = { ...countryInfo, proxies: [] };
-		}
-		grouped[name].proxies.push(proxyName);
+
+		// 独立测试每一个国家条目，允许同一节点命中多个条目
+		const matchedCountries = parseAllCountriesFromNodeName(proxyName);
+		matchedCountries.forEach(countryInfo => {
+			const { code, name, emoji, aliases, exclude } = countryInfo;
+			if (!grouped[code]) {
+				grouped[code] = { code, name, emoji, aliases, exclude, proxies: [] };
+			}
+			grouped[code].proxies.push(proxyName);
+		});
 	});
 
 	return grouped;
@@ -351,7 +352,7 @@ export const COUNTRY_DATA = {
 	'cloudflare': { name: 'cloudflare', emoji: '🌥️', aliases: ['cloudflare'] },
 	'airport': { name: 'airport', emoji: '🎯', aliases: ['B Group'] },
 	'ipv6': { name: 'CMCC-IPV6', emoji: '🖁', aliases: ['ipv6'] },
-	'nonhk': { name: 'nonhk', emoji: '🎱', aliases: ['B Group'], exclude: ['HK'] },
+	'nonhk': { name: 'nonhk', emoji: '🎱', aliases: ['B Group'], exclude: ['HongKong'] },
 	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'Hong Kong', 'HK'] },
 	'TW': { name: 'Taiwan', emoji: '🇹🇼', aliases: ['台湾', 'Taiwan', 'TW'] },
 	'JP': { name: 'Japan', emoji: '🇯🇵', aliases: ['日本', 'Japan', 'JP'] },
@@ -383,57 +384,25 @@ export const COUNTRY_DATA = {
 	'NZ': { name: 'New Zealand', emoji: '🇳🇿', aliases: ['新西兰', 'New Zealand'] },
 	'AE': { name: 'United Arab Emirates', emoji: '🇦🇪', aliases: ['阿联酋', 'United Arab Emirates'] },
 };
-
 export function parseCountryFromNodeName(nodeName) {
-	// Build patterns sorted by length descending so longer aliases match first
-	// (e.g. "Indonesia" before "India", "United States" before "US").
-	// Short aliases (<=3 chars, all ASCII, e.g. US, UK, HK) get \b word boundaries
-	// to prevent false positives like "plus" matching "US".
-	const allEntries = Object.entries(COUNTRY_DATA).flatMap(([code, c]) =>
-		c.aliases.map(alias => ({
-			code,
-			alias,
-			escaped: alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-		}))
-	);
-	allEntries.sort((a, b) => b.alias.length - a.alias.length);
-
-	const patterns = allEntries.map(({ alias, escaped }) => {
-		if (alias.length <= 3 && /^[A-Za-z]+$/.test(alias)) {
-			return `\\b${escaped}\\b`;
-		}
-		return escaped;
-	});
-
-	// 加上 'g' 标志，命中被排除的别名时可以继续往后找其他匹配
-	const regex = new RegExp(patterns.join('|'), 'gi');
-	const nameLower = nodeName.toLowerCase();
-
-	let match;
-	while ((match = regex.exec(nodeName)) !== null) {
-		const matchedAlias = match[0].toLowerCase();
-		const entry = allEntries.find(e => e.alias.toLowerCase() === matchedAlias);
-
-		if (entry) {
-			const countryData = COUNTRY_DATA[entry.code];
-			const excludeList = countryData.exclude || [];
-			const isExcluded = excludeList.some(keyword =>
-				nameLower.includes(keyword.toLowerCase())
-			);
-
-			if (!isExcluded) {
-				return { code: entry.code, ...countryData };
-			}
-			// 命中排除关键字，跳过这次匹配，继续尝试后面的内容
-		}
-
-		// 防止零宽匹配导致死循环
-		if (regex.lastIndex === match.index) {
-			regex.lastIndex++;
+	for (const code in COUNTRY_DATA) {
+		if (nodeMatchesCountry(nodeName, COUNTRY_DATA[code])) {
+			return { code, ...COUNTRY_DATA[code] };
 		}
 	}
-
 	return null;
+}
+
+// 返回一个节点匹配到的【所有】国家条目，而不是只取第一个。
+// groupProxiesByCountry 用这个来支持同一节点归入多个分组。
+export function parseAllCountriesFromNodeName(nodeName) {
+	const matches = [];
+	for (const code in COUNTRY_DATA) {
+		if (nodeMatchesCountry(nodeName, COUNTRY_DATA[code])) {
+			matches.push({ code, ...COUNTRY_DATA[code] });
+		}
+	}
+	return matches;
 }
 // Build a mihomo proxy-group `filter` regex matching node names of one country.
 // Mirrors the classification patterns in parseCountryFromNodeName (same escaping
@@ -472,4 +441,45 @@ export function buildCountryExcludeFilter({ exclude } = {}) {
 		return null;
 	}
 	return `(?i)${patterns.join('|')}`;
+}
+function escapeRegExp(str) {
+	return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+function aliasToPattern(alias) {
+	const escaped = escapeRegExp(alias);
+	if (alias.length <= 3 && /^[A-Za-z]+$/.test(alias)) {
+		return `\\b${escaped}\\b`;
+	}
+	return escaped;
+}
+
+// 独立判断一个节点名是否属于某个国家条目：命中 alias 且不命中 exclude。
+// 与其他国家条目的判断完全无关，因此同一个节点可以同时匹配多个国家。
+export function nodeMatchesCountry(nodeName, countryData) {
+	if (typeof nodeName !== 'string' || !nodeName.trim() || !countryData) {
+		return false;
+	}
+	const aliases = countryData.aliases || [];
+	if (aliases.length === 0) {
+		return false;
+	}
+	const pattern = aliases.map(aliasToPattern).join('|');
+	const regex = new RegExp(pattern, 'i');
+	if (!regex.test(nodeName)) {
+		return false;
+	}
+
+	const excludeList = countryData.exclude || [];
+	if (excludeList.length > 0) {
+		const nameLower = nodeName.toLowerCase();
+		const isExcluded = excludeList.some(keyword =>
+			nameLower.includes(String(keyword).toLowerCase())
+		);
+		if (isExcluded) {
+			return false;
+		}
+	}
+
+	return true;
 }
