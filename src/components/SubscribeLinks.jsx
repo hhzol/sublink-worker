@@ -7,7 +7,7 @@ export const SubscribeLinks = (props) => {
     if (!links) return null;
 
     return (
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8 transition-all duration-300 hover:shadow-md">
+        <div x-data="{ copied: null }" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8 transition-all duration-300 hover:shadow-md">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
                 <span class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center">
                     <i class="fas fa-link text-sm"></i>
@@ -18,144 +18,112 @@ export const SubscribeLinks = (props) => {
             <div class="space-y-4">
                 {/* Xray Link */}
                 <div class="relative group">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label for="xray-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         {t('xrayLink')}
                     </label>
                     <div class="flex gap-2">
                         <input
+                            id="xray-link"
+                            name="xray-link"
                             type="text"
                             readonly
+                            autocomplete="off"
+                            x-ref="xrayInput"
                             value={links.xray}
                             class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 font-mono text-sm"
-                            data-copy-input="xray"
                         />
                         <button
                             type="button"
+                            x-on:click="$clipboard($refs.xrayInput.value); copied = 'xray'; setTimeout(() => copied = null, 2000)"
                             class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
-                            data-copy-btn="xray"
+                            x-bind:class="{'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': copied === 'xray'}"
                         >
-                            <i class="fas fa-copy"></i>
+                            <i class="fas" x-bind:class="copied === 'xray' ? 'fa-check' : 'fa-copy'"></i>
                         </button>
                     </div>
                 </div>
 
                 {/* SingBox Link */}
                 <div class="relative group">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label for="singbox-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         {t('singboxLink')}
                     </label>
                     <div class="flex gap-2">
                         <input
+                            id="singbox-link"
+                            name="singbox-link"
                             type="text"
                             readonly
+                            autocomplete="off"
+                            x-ref="singboxInput"
                             value={links.singbox}
                             class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 font-mono text-sm"
-                            data-copy-input="singbox"
                         />
                         <button
                             type="button"
+                            x-on:click="$clipboard($refs.singboxInput.value); copied = 'singbox'; setTimeout(() => copied = null, 2000)"
                             class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
-                            data-copy-btn="singbox"
+                            x-bind:class="{'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': copied === 'singbox'}"
                         >
-                            <i class="fas fa-copy"></i>
+                            <i class="fas" x-bind:class="copied === 'singbox' ? 'fa-check' : 'fa-copy'"></i>
                         </button>
                     </div>
                 </div>
 
                 {/* Clash Link */}
                 <div class="relative group">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label for="clash-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         {t('clashLink')}
                     </label>
                     <div class="flex gap-2">
                         <input
+                            id="clash-link"
+                            name="clash-link"
                             type="text"
                             readonly
+                            autocomplete="off"
+                            x-ref="clashInput"
                             value={links.clash}
                             class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 font-mono text-sm"
-                            data-copy-input="clash"
                         />
                         <button
                             type="button"
+                            x-on:click="$clipboard($refs.clashInput.value); copied = 'clash'; setTimeout(() => copied = null, 2000)"
                             class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
-                            data-copy-btn="clash"
+                            x-bind:class="{'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': copied === 'clash'}"
                         >
-                            <i class="fas fa-copy"></i>
+                            <i class="fas" x-bind:class="copied === 'clash' ? 'fa-check' : 'fa-copy'"></i>
                         </button>
                     </div>
                 </div>
 
                 {/* Surge Link */}
                 <div class="relative group">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label for="surge-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         {t('surgeLink')}
                     </label>
                     <div class="flex gap-2">
                         <input
+                            id="surge-link"
+                            name="surge-link"
                             type="text"
                             readonly
+                            autocomplete="off"
+                            x-ref="surgeInput"
                             value={links.surge}
                             class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 font-mono text-sm"
-                            data-copy-input="surge"
                         />
                         <button
                             type="button"
+                            x-on:click="$clipboard($refs.surgeInput.value); copied = 'surge'; setTimeout(() => copied = null, 2000)"
                             class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
-                            data-copy-btn="surge"
+                            x-bind:class="{'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': copied === 'surge'}"
                         >
-                            <i class="fas fa-copy"></i>
+                            <i class="fas" x-bind:class="copied === 'surge' ? 'fa-check' : 'fa-copy'"></i>
                         </button>
                     </div>
                 </div>
             </div>
-
-            {/* 原生 JavaScript 实现复制功能 - 立即执行，避免 DOMContentLoaded 延迟 */}
-            <script
-                dangerouslySetInnerHTML={{
-                    __html: `
-                        (function() {
-                            // 防止重复绑定（如果脚本被多次执行）
-                            if (window.__copyButtonsBound) return;
-                            window.__copyButtonsBound = true;
-
-                            const buttons = document.querySelectorAll('[data-copy-btn]');
-                            buttons.forEach(btn => {
-                                btn.addEventListener('click', function(e) {
-                                    const key = this.dataset.copyBtn;
-                                    const input = document.querySelector('[data-copy-input="' + key + '"]');
-                                    if (!input) return;
-                                    const text = input.value;
-                                    
-                                    const copySuccess = function() {
-                                        const icon = this.querySelector('i');
-                                        if (icon) {
-                                            icon.className = 'fas fa-check';
-                                            setTimeout(() => {
-                                                icon.className = 'fas fa-copy';
-                                            }, 2000);
-                                        }
-                                    }.bind(this);
-                                    
-                                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                                        navigator.clipboard.writeText(text).then(copySuccess).catch(err => {
-                                            console.error('复制失败:', err);
-                                            // 降级方案
-                                            input.select();
-                                            document.execCommand('copy');
-                                            copySuccess();
-                                        });
-                                    } else {
-                                        // 老旧浏览器降级方案
-                                        input.select();
-                                        document.execCommand('copy');
-                                        copySuccess();
-                                    }
-                                });
-                            });
-                        })();
-                    `
-                }}
-            />
         </div>
     );
 };
