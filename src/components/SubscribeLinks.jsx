@@ -34,7 +34,7 @@ export const SubscribeLinks = (props) => {
                         />
                         <button
                             type="button"
-                            x-on:click="$clipboard($refs.xrayInput.value); copied = 'xray'; setTimeout(() => copied = null, 2000)"
+                            x-on:click="navigator.clipboard.writeText($refs.xrayInput.value); copied = 'xray'; setTimeout(() => copied = null, 2000)"
                             class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
                             x-bind:class="{'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': copied === 'xray'}"
                         >
@@ -61,7 +61,7 @@ export const SubscribeLinks = (props) => {
                         />
                         <button
                             type="button"
-                            x-on:click="$clipboard($refs.singboxInput.value); copied = 'singbox'; setTimeout(() => copied = null, 2000)"
+                            x-on:click="navigator.clipboard.writeText($refs.singboxInput.value); copied = 'singbox'; setTimeout(() => copied = null, 2000)"
                             class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
                             x-bind:class="{'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': copied === 'singbox'}"
                         >
@@ -88,7 +88,7 @@ export const SubscribeLinks = (props) => {
                         />
                         <button
                             type="button"
-                            x-on:click="$clipboard($refs.clashInput.value); copied = 'clash'; setTimeout(() => copied = null, 2000)"
+                            x-on:click="navigator.clipboard.writeText($refs.clashInput.value); copied = 'clash'; setTimeout(() => copied = null, 2000)"
                             class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
                             x-bind:class="{'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': copied === 'clash'}"
                         >
@@ -115,7 +115,7 @@ export const SubscribeLinks = (props) => {
                         />
                         <button
                             type="button"
-                            x-on:click="$clipboard($refs.surgeInput.value); copied = 'surge'; setTimeout(() => copied = null, 2000)"
+                            x-on:click="navigator.clipboard.writeText($refs.surgeInput.value); copied = 'surge'; setTimeout(() => copied = null, 2000)"
                             class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
                             x-bind:class="{'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400': copied === 'surge'}"
                         >
