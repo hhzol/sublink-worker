@@ -109,45 +109,47 @@ export const SubscribeLinks = (props) => {
                 </div>
             </div>
 
-            {/* 原生 JavaScript 实现复制功能 */}
+            {/* 原生 JavaScript 实现复制功能 - 立即执行，避免 DOMContentLoaded 延迟 */}
             <script
                 dangerouslySetInnerHTML={{
                     __html: `
                         (function() {
-                            document.addEventListener('DOMContentLoaded', function() {
-                                const buttons = document.querySelectorAll('[data-copy-btn]');
-                                buttons.forEach(btn => {
-                                    btn.addEventListener('click', function(e) {
-                                        const key = this.dataset.copyBtn;
-                                        const input = document.querySelector('[data-copy-input="' + key + '"]');
-                                        if (!input) return;
-                                        const text = input.value;
-                                        
-                                        const copySuccess = function() {
-                                            const icon = this.querySelector('i');
-                                            if (icon) {
-                                                icon.className = 'fas fa-check';
-                                                setTimeout(() => {
-                                                    icon.className = 'fas fa-copy';
-                                                }, 2000);
-                                            }
-                                        }.bind(this);
-                                        
-                                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                                            navigator.clipboard.writeText(text).then(copySuccess).catch(err => {
-                                                console.error('复制失败:', err);
-                                                // 降级方案
-                                                input.select();
-                                                document.execCommand('copy');
-                                                copySuccess();
-                                            });
-                                        } else {
-                                            // 老旧浏览器降级方案
+                            // 防止重复绑定（如果脚本被多次执行）
+                            if (window.__copyButtonsBound) return;
+                            window.__copyButtonsBound = true;
+
+                            const buttons = document.querySelectorAll('[data-copy-btn]');
+                            buttons.forEach(btn => {
+                                btn.addEventListener('click', function(e) {
+                                    const key = this.dataset.copyBtn;
+                                    const input = document.querySelector('[data-copy-input="' + key + '"]');
+                                    if (!input) return;
+                                    const text = input.value;
+                                    
+                                    const copySuccess = function() {
+                                        const icon = this.querySelector('i');
+                                        if (icon) {
+                                            icon.className = 'fas fa-check';
+                                            setTimeout(() => {
+                                                icon.className = 'fas fa-copy';
+                                            }, 2000);
+                                        }
+                                    }.bind(this);
+                                    
+                                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                                        navigator.clipboard.writeText(text).then(copySuccess).catch(err => {
+                                            console.error('复制失败:', err);
+                                            // 降级方案
                                             input.select();
                                             document.execCommand('copy');
                                             copySuccess();
-                                        }
-                                    });
+                                        });
+                                    } else {
+                                        // 老旧浏览器降级方案
+                                        input.select();
+                                        document.execCommand('copy');
+                                        copySuccess();
+                                    }
                                 });
                             });
                         })();
