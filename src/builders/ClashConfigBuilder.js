@@ -411,7 +411,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                         proxies = ['DIRECT'];
                     }
                     if (REJECT_ACTION_RULES.has(outbound)) {
-                        proxies = ['REJECT', 'DIRECT'];
+                        proxies = ['REJECT', 'DIRECT', this.t('outboundNames.Auto Select')];
                     }
                     const group = {
                         type: "select",

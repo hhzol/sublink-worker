@@ -286,6 +286,10 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
                 if (DIRECT_DEFAULT_RULES.has(outbound)) {
                     options = ['DIRECT'];
                 }
+                // For rules that should default to REJECT, move REJECT to the front
+                if (REJECT_ACTION_RULES.has(outbound)) {
+                    options = ['REJECT', 'DIRECT', this.t('outboundNames.Auto Select')];
+                }
                 this.config['proxy-groups'].push(
                     this.createProxyGroup(name, 'select', options)
                 );

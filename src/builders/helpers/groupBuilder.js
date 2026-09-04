@@ -40,7 +40,6 @@ export function buildNodeSelectMembers({ proxyList = [], translator, groupByCoun
     return withDirectReject(base, { includeReject });
 }
 
-const AD_BLOCK_GROUP_NAME = '🛑 广告拦截';
 const AI_GROUP_NAME = '💬 AI 服务';
 
 export function buildSelectorMembers({ proxyList = [], translator, groupByCountry = false, manualGroupName, countryGroupNames = [], customGroupNames = [], includeAutoSelect = true, groupName }) {
@@ -53,16 +52,12 @@ export function buildSelectorMembers({ proxyList = [], translator, groupByCountr
             ...(includeAutoSelect ? [translator('outboundNames.Auto Select')] : []),
             ...(manualGroupName ? [manualGroupName] : []),
             ...(groupName === AI_GROUP_NAME ? customGroupNames : []),
-            ...(groupName !== AD_BLOCK_GROUP_NAME ? countryGroupNames : [])
+            ...countryGroupNames
         ]
         : [
             translator('outboundNames.Node Select'),
             ...proxyList
         ];
-
-    if (groupName === AD_BLOCK_GROUP_NAME) {
-        return withDirectReject(base, { includeReject: true });
-    }
 
     return uniqueNames(base);
 }
