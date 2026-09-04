@@ -3,18 +3,14 @@ WORKDIR /app
 
 COPY package*.json ./
 # 根据目标平台决定是否忽略安装脚本（arm64 下 QEMU 模拟常崩溃）
-ARG TARGETPLATFORM
 RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        npm install --ignore-scripts; \
+        npm install --ignore-scripts && \
+        npm install esbuild-wasm && \
+        ESBUILD_USE_WASM=1 npm run build:node; \
     else \
-        npm install; \
+        npm install && \
+        npm run build:node; \
     fi
-
-# 对于 arm64，确保 esbuild 等工具能正常工作（触发二进制下载，但不会在 QEMU 下跑 install 脚本）
-RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        npx esbuild --version || true; \
-    fi
-
 COPY src ./src
 COPY public ./public
 
