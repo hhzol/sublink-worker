@@ -1,5 +1,5 @@
 import yaml from 'js-yaml';
-import { CLASH_CONFIG, generateRules, generateClashRuleSets, DIRECT_DEFAULT_RULES, REJECT_ACTION_RULES } from '../config/index.js';
+import { CLASH_CONFIG, generateRules, generateClashRuleSets, DIRECT_DEFAULT_RULES, REJECT_ACTION_RULES, AI_RULES } from '../config/index.js';
 import { BaseConfigBuilder } from './BaseConfigBuilder.js';
 import { deepCopy, groupProxiesByCountry, buildCountryNameFilter, buildCountryExcludeFilter, CUSTOM_DATA, COUNTRY_DATA } from '../utils.js';
 import { addProxyWithDedup } from './helpers/proxyHelpers.js';
@@ -412,6 +412,9 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     }
                     if (REJECT_ACTION_RULES.has(outbound)) {
                         proxies = ['REJECT', 'DIRECT', this.t('outboundNames.Auto Select')];
+                    }
+                    if (AI_RULES.has(outbound)) {
+                        proxies = ['🎱 非香港节点', '🇺🇸 United States', this.t('outboundNames.Manual Switch')];
                     }
                     const group = {
                         type: "select",
