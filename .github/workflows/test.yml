@@ -1,9 +1,6 @@
 name: Test Worker
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
 
 jobs:
