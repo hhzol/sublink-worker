@@ -283,13 +283,13 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
                     return;
                 }
                 if (DIRECT_DEFAULT_RULES.has(outbound)) {
-                    proxies = ['DIRECT'];
+                    options = ['DIRECT'];
                 }
                 if (REJECT_ACTION_RULES.has(outbound)) {
-                    proxies = ['REJECT', 'DIRECT', this.t('outboundNames.Auto Select')];
+                    options = ['REJECT', 'DIRECT', this.t('outboundNames.Auto Select')];
                 }
                 if (AI_RULES.has(outbound)) {
-                    proxies = ['🎱 非香港节点', '🇺🇸 United States', this.t('outboundNames.Manual Switch')];
+                    options = ['🎱 非香港节点', '🇺🇸 United States', this.t('outboundNames.Manual Switch')];
                 }
                 this.config['proxy-groups'].push(
                     this.createProxyGroup(name, 'select', options)

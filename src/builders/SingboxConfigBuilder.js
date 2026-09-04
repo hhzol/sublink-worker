@@ -229,13 +229,13 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
                 }
                 // For rules that should default to DIRECT, move DIRECT to the front
                 if (DIRECT_DEFAULT_RULES.has(outbound)) {
-                    proxies = ['DIRECT'];
+                    selectorMembers = ['DIRECT'];
                 }
                 if (REJECT_ACTION_RULES.has(outbound)) {
-                    proxies = ['REJECT', 'DIRECT', this.t('outboundNames.Auto Select')];
+                    selectorMembers = ['REJECT', 'DIRECT', this.t('outboundNames.Auto Select')];
                 }
                 if (AI_RULES.has(outbound)) {
-                    proxies = ['🎱 非香港节点', '🇺🇸 United States', this.t('outboundNames.Manual Switch')];
+                    selectorMembers = ['🎱 非香港节点', '🇺🇸 United States', this.t('outboundNames.Manual Switch')];
                 }
 
                 this.config.outbounds.push({
