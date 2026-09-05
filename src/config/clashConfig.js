@@ -24,27 +24,16 @@ export const CLASH_CONFIG = {
 	},
 	'dns': {
 		'enable': true,
+		'listen': 7874,
 		'ipv6': true,
 		'respect-rules': true,
 		'enhanced-mode': 'fake-ip',
-		'nameserver': [
-			'https://120.53.53.53/dns-query',
-			'https://223.5.5.5/dns-query'
-		],
-		'proxy-server-nameserver': [
-			'https://120.53.53.53/dns-query',
-			'https://223.5.5.5/dns-query'
-		],
+		'proxy-server-nameserver': ['https://120.53.53.53/dns-query','https://223.5.5.5/dns-query'],
 		'nameserver-policy': {
-			'geosite:cn,private': [
-				'https://120.53.53.53/dns-query',
-				'https://223.5.5.5/dns-query'
-			],
-			'geosite:geolocation-!cn': [
-				'https://dns.cloudflare.com/dns-query',
-				'https://dns.google/dns-query'
-			]
-		}
+			'RULE-SET:geolocation-cn, cn': ['quic://223.5.5.5']
+		},
+		'nameserver': ['https://dns.google/dns-query#🐟 漏网之鱼'],
+		'fake-ip-filter': ['*.lan','*.local']
 	},
 	'proxies': [],
 	'proxy-groups': []
