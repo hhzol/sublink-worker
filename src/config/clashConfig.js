@@ -30,7 +30,7 @@ export const CLASH_CONFIG = {
 		'enhanced-mode': 'fake-ip',
 		'proxy-server-nameserver': ['https://120.53.53.53/dns-query','https://223.5.5.5/dns-query'],
 		'nameserver-policy': {
-			'RULE-SET:geolocation-cn, cn': ['quic://223.5.5.5']
+			'RULE-SET:geolocation-cn': ['quic://223.5.5.5']
 		},
 		'nameserver': ['https://dns.google/dns-query#🐟 漏网之鱼'],
 		'fake-ip-filter': ['*.lan','*.local']
