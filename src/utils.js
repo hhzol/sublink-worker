@@ -348,10 +348,10 @@ export function parseArray(value) {
 		.filter(entry => entry.length > 0);	
 }
 export const CUSTOM_DATA = {
-	'airport': { name: '机场节点', emoji: '🎯', aliases: ['B Group'] },
+	'airport': { name: '机场节点', emoji: '🎯', aliases: ['B Group', '剩余流量'] },
 	'cloudflare': { name: 'cloudflare', emoji: '🌥️', aliases: ['cloudflare'] },
 	'ipv6': { name: 'CMCC-IPV6', emoji: '🖁', aliases: ['ipv6'] },
-	'nonhk': { name: '非香港节点', emoji: '🎱', aliases: ['B Group'], exclude: ['HongKong'] },
+	'nonhk': { name: '非香港节点', emoji: '🎱', aliases: ['B Group', '剩余流量'], exclude: ['HongKong'] },
 };
 export const COUNTRY_DATA = {
 	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'HongKong', 'HK'] },
