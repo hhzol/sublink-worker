@@ -243,7 +243,7 @@ export function generateClashRuleSets(selectedRules = [], customRules = [], useM
 				site_rule_providers[site] = {
 					type: 'http',
 					format: siteFormat,
-					behavior: 'domain',
+					behavior: siteExt === '.yaml' ? 'classical' : 'domain',
 					url: useCustom
 						? `${customBase}${site}${siteExt}`
 						: `${CLASH_SITE_RULE_SET_BASE_URL}${site}${ext}`,
