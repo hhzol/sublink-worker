@@ -6,10 +6,7 @@
 import { createTranslator } from '../i18n/index.js';
 import { generateRules } from './ruleGenerators.js';
 import { COUNTRY_DATA } from '../utils.js';
-import { DIRECT_DEFAULT_RULES } from './rules.js';
-
-// Rule names that should default to REJECT
-const REJECT_RULES = new Set(['Ad Block']);
+import { DIRECT_DEFAULT_RULES, REJECT_ACTION_RULES } from './rules.js';
 
 const SPEED_TEST_URL = 'http://www.gstatic.com/generate_204';
 
@@ -26,6 +23,17 @@ function escapeRegex(str) {
  */
 function buildCountryGroupRefs(countryGroupNames) {
 	return countryGroupNames.map(name => `[]${name}`).join('`');
+}
+
+/**
+ * Resolve the ruleset target name for a rule.
+ * DIRECT_DEFAULT_RULES 的 outbound 直接走 DIRECT，不再生成策略组。
+ */
+function resolveRulesetTarget(rule, t) {
+	if (DIRECT_DEFAULT_RULES.has(rule.outbound)) {
+		return 'DIRECT';
+	}
+	return t(`outboundNames.${rule.outbound}`);
 }
 
 /**
@@ -48,7 +56,7 @@ export function generateSubconverterConfig({ selectedRules = [], customRules = [
 
 	// Source-IP rules first (highest priority, no DNS needed)
 	rules.forEach(rule => {
-		const groupName = t(`outboundNames.${rule.outbound}`);
+		const groupName = resolveRulesetTarget(rule, t);
 
 		if (rule.src_ip_cidr) {
 			rule.src_ip_cidr.forEach(cidr => {
@@ -59,7 +67,7 @@ export function generateSubconverterConfig({ selectedRules = [], customRules = [
 
 	// First pass: domain-type rules (DOMAIN-SUFFIX, DOMAIN-KEYWORD, GEOSITE)
 	rules.forEach(rule => {
-		const groupName = t(`outboundNames.${rule.outbound}`);
+		const groupName = resolveRulesetTarget(rule, t);
 
 		if (rule.domain_suffix) {
 			rule.domain_suffix.forEach(suffix => {
@@ -80,7 +88,7 @@ export function generateSubconverterConfig({ selectedRules = [], customRules = [
 
 	// Second pass: IP-type rules (GEOIP, IP-CIDR)
 	rules.forEach(rule => {
-		const groupName = t(`outboundNames.${rule.outbound}`);
+		const groupName = resolveRulesetTarget(rule, t);
 
 		if (rule.ip_rules) {
 			rule.ip_rules.forEach(ip => {
@@ -160,14 +168,15 @@ export function generateSubconverterConfig({ selectedRules = [], customRules = [
 	}
 
 	rules.forEach(rule => {
+		// DIRECT 默认规则直接在 ruleset 里引用 DIRECT，不再生成策略组
+		if (DIRECT_DEFAULT_RULES.has(rule.outbound)) return;
+
 		const groupName = t(`outboundNames.${rule.outbound}`);
 		if (processedGroups.has(groupName)) return;
 		processedGroups.add(groupName);
 
-		if (REJECT_RULES.has(rule.outbound)) {
-			lines.push(`custom_proxy_group=${groupName}\`select\`[]REJECT\`[]DIRECT`);
-		} else if (DIRECT_DEFAULT_RULES.has(rule.outbound)) {
-			lines.push(`custom_proxy_group=${groupName}\`select\`[]DIRECT\`[]${nodeSelectName}`);
+		if (REJECT_ACTION_RULES.has(rule.outbound)) {
+			lines.push(`custom_proxy_group=${groupName}\`select\`[]REJECT\`[]DIRECT\`[]${nodeSelectName}`);
 		} else {
 			if (groupByCountry) {
 				const refs = buildCountryGroupRefs(countryGroupNames);

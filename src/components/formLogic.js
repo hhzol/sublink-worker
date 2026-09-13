@@ -99,6 +99,7 @@ export const formLogicFn = (t) => {
             configValidationState: '',
             configValidationMessage: '',
             customUA: '',
+            fakeIpFilterDomains: '',
             loading: false,
             generatedLinks: null,
             shortenedLinks: null,
@@ -139,6 +140,7 @@ export const formLogicFn = (t) => {
                 this.configEditor = localStorage.getItem('configEditor') || '';
                 this.configType = localStorage.getItem('configType') || 'singbox';
                 this.customShortCode = localStorage.getItem('customShortCode') || '';
+                this.fakeIpFilterDomains = localStorage.getItem('fakeIpFilterDomains') || '';
                 const initialUrlParams = new URLSearchParams(window.location.search);
                 this.currentConfigId = initialUrlParams.get('configId') || '';
 
@@ -177,6 +179,7 @@ export const formLogicFn = (t) => {
                 });
                 this.$watch('customShortCode', val => localStorage.setItem('customShortCode', val));
                 this.$watch('accordionSections', val => localStorage.setItem('accordionSections', JSON.stringify(val)), { deep: true });
+                this.$watch('fakeIpFilterDomains', val => localStorage.setItem('fakeIpFilterDomains', val));
             },
 
             toggleAccordion(section) {
@@ -221,6 +224,10 @@ export const formLogicFn = (t) => {
                     params.append('group_by_country', 'true');
                 }
 
+                if (this.fakeIpFilterDomains && this.fakeIpFilterDomains.trim()) {
+                    params.append('fake_ip_filter', this.fakeIpFilterDomains.trim());
+                }
+                
                 // Include lang parameter so subconverter gets correct group names
                 const appLang = window.APP_LANG || 'zh-CN';
                 if (appLang !== 'zh-CN') {
@@ -370,6 +377,8 @@ export const formLogicFn = (t) => {
                     const customRulesInput = document.querySelector('input[name="customRules"]');
                     const customRules = customRulesInput && customRulesInput.value ? JSON.parse(customRulesInput.value) : [];
 
+
+
                     // Construct URLs
                     const origin = window.location.origin;
                     const params = new URLSearchParams();
@@ -383,6 +392,7 @@ export const formLogicFn = (t) => {
                     if (this.enableClashUI) params.append('enable_clash_ui', 'true');
                     if (this.externalController) params.append('external_controller', this.externalController);
                     if (this.externalUiDownloadUrl) params.append('external_ui_download_url', this.externalUiDownloadUrl);
+                    if (this.fakeIpFilterDomains && this.fakeIpFilterDomains.trim()) params.append('fake_ip_filter', this.fakeIpFilterDomains.trim());
 
                     // Add configId if present in URL
                     const urlParams = new URLSearchParams(window.location.search);
@@ -617,6 +627,10 @@ export const formLogicFn = (t) => {
                     } catch (e) {
                         console.warn('Failed to parse customRules:', e);
                     }
+                }
+                const fakeIpFilter = params.get('fake_ip_filter');
+                if (fakeIpFilter) {
+                    this.fakeIpFilterDomains = fakeIpFilter;
                 }
 
                 // Extract other parameters

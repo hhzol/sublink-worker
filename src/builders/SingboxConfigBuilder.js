@@ -7,8 +7,22 @@ import { normalizeGroupName } from './helpers/groupNameUtils.js';
 
 const RULE_SET_HTTP_CLIENT_TAG = 'rule-set-download';
 
+// 广告拦截相关的 outbound 名称
+const AD_BLOCK_OUTBOUND_NAMES = new Set(['Ad Block', '🛑 广告拦截']);
+
+// 把字符串或数组统一转成非空字符串数组
+function toStringArray(value) {
+    if (Array.isArray(value)) {
+        return value.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim());
+    }
+    if (typeof value === 'string') {
+        return value.split(',').map(x => x.trim()).filter(Boolean);
+    }
+    return [];
+}
+
 export class SingboxConfigBuilder extends BaseConfigBuilder {
-    constructor(inputString, selectedRules, customRules, baseConfig, lang, userAgent, groupByCountry = false, enableClashUI = false, externalController, externalUiDownloadUrl, singboxVersion = '1.12', includeAutoSelect = true) {
+    constructor(inputString, selectedRules, customRules, baseConfig, lang, userAgent, groupByCountry = false, enableClashUI = false, externalController, externalUiDownloadUrl, singboxVersion = '1.12', includeAutoSelect = true, fakeIpFilterDomains = '') {
         const resolvedBaseConfig = baseConfig ?? SING_BOX_CONFIG;
         super(inputString, resolvedBaseConfig, lang, userAgent, groupByCountry, includeAutoSelect);
 
@@ -21,30 +35,20 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         this.externalController = externalController;
         this.externalUiDownloadUrl = externalUiDownloadUrl;
         this.singboxVersion = singboxVersion;  // '1.11', '1.12' or '1.14'
+        this.fakeIpFilterDomains = fakeIpFilterDomains;
 
         if (this.config?.dns?.servers?.length > 0) {
             this.config.dns.servers[0].detour = this.t('outboundNames.Node Select');
         }
     }
 
-    /**
-     * Check if subscription format is compatible for use as Sing-Box outbound_provider
-     * Only available in Sing-Box 1.12+
-     * @param {'clash'|'singbox'|'unknown'} format - Detected subscription format
-     * @returns {boolean} - True if format is Sing-Box JSON and version supports providers
-     */
     isCompatibleProviderFormat(format) {
-        // outbound_providers only supported in Sing-Box 1.12+
         if (this.singboxVersion === '1.11') {
             return false;
         }
         return format === 'singbox';
     }
 
-    /**
-     * Generate outbound_providers configuration from collected URLs
-     * @returns {object[]} - Array of outbound provider objects
-     */
     generateOutboundProviders() {
         const existingTags = this.getExistingProviderTags();
         return this.getAutoProviderDescriptors(existingTags).map(({ name, url }) => ({
@@ -61,10 +65,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         }));
     }
 
-    /**
-     * Get list of provider tags
-     * @returns {string[]} - Array of provider tags
-     */
     getProviderTags() {
         return this.getAutoProviderDescriptors(this.getExistingProviderTags()).map(provider => provider.name);
     }
@@ -75,10 +75,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             : [];
     }
 
-    /**
-     * Get all provider tags (user-defined + auto-generated)
-     * @returns {string[]} - Array of provider tags
-     */
     getAllProviderTags() {
         if (this.singboxVersion === '1.11') {
             return [];
@@ -97,31 +93,20 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
     }
 
     convertProxy(proxy) {
-        // Create a shallow copy to avoid mutating the original
         const sanitized = { ...proxy };
 
-        // Strip Clash-only / mis-typed fields that conflict with sing-box semantics.
-        // `udp` is Clash-only. Top-level `network` in sing-box is a TCP/UDP allowlist
-        // (NetworkList in option/types.go); a stray "tcp" silently disables UDP for
-        // every group that selects this node — including DNS hijack and fakeip.
         delete sanitized.udp;
         delete sanitized.network;
 
-        // Remove 'alpn' from root level - it should only exist inside 'tls' object for sing-box
-        // For protocols like vless/vmess, alpn belongs inside the tls configuration
         if (sanitized.alpn && sanitized.tls) {
-            // Move alpn into tls if tls exists and doesn't have alpn
             if (!sanitized.tls.alpn) {
                 sanitized.tls = { ...sanitized.tls, alpn: sanitized.alpn };
             }
             delete sanitized.alpn;
         } else if (sanitized.alpn && !sanitized.tls) {
-            // No TLS, remove alpn entirely
             delete sanitized.alpn;
         }
 
-        // Remove packet_encoding for now - it's version-specific in sing-box
-        // xudp is default in newer versions
         delete sanitized.packet_encoding;
 
         return sanitized;
@@ -166,7 +151,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             outbounds: autoSelectMembers
         };
 
-        // Add 'providers' field if we have outbound_providers
         if (providerTags.length > 0) {
             group.providers = providerTags;
         }
@@ -196,7 +180,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             outbounds: members
         };
 
-        // Add 'providers' field if we have outbound_providers
         const providerTags = this.getAllProviderTags();
         if (providerTags.length > 0) {
             group.providers = providerTags;
@@ -220,45 +203,47 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
 
     addOutboundGroups(outbounds, proxyList) {
         outbounds.forEach(outbound => {
-            if (outbound !== this.t('outboundNames.Node Select')) {
-                if (REJECT_ACTION_RULES.has(outbound)) return;
-                let selectorMembers = this.buildSelectorMembers(proxyList);
-                const tag = this.t(`outboundNames.${outbound}`);
-                if (this.hasOutboundTag(tag)) {
-                    return;
-                }
-                // For rules that should default to DIRECT, move DIRECT to the front
-                if (DIRECT_DEFAULT_RULES.has(outbound)) {
-                    selectorMembers = ['DIRECT'];
-                }
-                if (REJECT_ACTION_RULES.has(outbound)) {
-                    selectorMembers = ['REJECT', 'DIRECT', this.t('outboundNames.Auto Select')];
-                }
-                if (AI_RULES.has(outbound)) {
-                    selectorMembers = ['🎱 非香港节点', '🇺🇸 United States', this.t('outboundNames.Manual Switch')];
-                }
+            if (outbound === this.t('outboundNames.Node Select')) return;
+            if (REJECT_ACTION_RULES.has(outbound)) return;
+            if (DIRECT_DEFAULT_RULES.has(outbound)) return;
 
-                this.config.outbounds.push({
-                    type: "selector",
-                    tag,
-                    outbounds: selectorMembers
-                });
+            const tag = this.t(`outboundNames.${outbound}`);
+            if (this.hasOutboundTag(tag)) return;
+
+            let selectorMembers = this.buildSelectorMembers(proxyList);
+            if (AI_RULES.has(outbound)) {
+                selectorMembers = ['🎱 非香港节点', '🇺🇸 United States', this.t('outboundNames.Manual Switch')];
             }
+
+            this.config.outbounds.push({
+                type: "selector",
+                tag,
+                outbounds: selectorMembers
+            });
         });
     }
 
     addCustomRuleGroups(proxyList) {
         if (Array.isArray(this.customRules)) {
             this.customRules.forEach(rule => {
-                const includeAutoSelect = this.includeAutoSelect && this.hasAutoSelectCandidates(proxyList);
-                const selectorMembers = buildCustomRuleMembers({
-                    translator: this.t,
-                    manualGroupName: this.manualGroupName,
-                    countryGroupNames: this.countryGroupNames,
-                    customGroupNames: this.customGroupNames,
-                    includeAutoSelect
-                });
                 if (this.hasOutboundTag(rule.name)) return;
+
+                const isReject = REJECT_ACTION_RULES.has(rule.name);
+
+                let selectorMembers;
+                if (isReject) {
+                    selectorMembers = ['REJECT', 'DIRECT', this.t('outboundNames.Node Select')];
+                } else {
+                    const includeAutoSelect = this.includeAutoSelect && this.hasAutoSelectCandidates(proxyList);
+                    selectorMembers = buildCustomRuleMembers({
+                        translator: this.t,
+                        manualGroupName: this.manualGroupName,
+                        countryGroupNames: this.countryGroupNames,
+                        customGroupNames: this.customGroupNames,
+                        includeAutoSelect
+                    });
+                }
+
                 this.config.outbounds.push({
                     type: "selector",
                     tag: rule.name,
@@ -278,9 +263,7 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         });
     }
 
-    // ============ 核心修改：addCountryGroups ============
     addCountryGroups() {
-        // 如果未启用按国家分组，直接返回
         if (!this.groupByCountry) {
             return;
         }
@@ -292,7 +275,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
 
         const providerTags = this.getAllProviderTags();
 
-        // Provider 模式补充（若提供者节点名称已收集）
         if (providerTags.length > 0 && this.providerNodeNames?.length > 0) {
             const providerCountryGroups = groupProxiesByCountry(this.providerNodeNames, {
                 getName: name => name
@@ -306,7 +288,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
 
         const existingTags = new Set((this.config.outbounds || []).map(o => normalizeGroupName(o?.tag)).filter(Boolean));
 
-        // 手动切换组（所有代理的集合）
         const manualProxyNames = proxies.map(p => p?.tag).filter(Boolean);
         const manualGroupName = manualProxyNames.length > 0 ? this.t('outboundNames.Manual Switch') : null;
         if (manualGroupName) {
@@ -325,11 +306,9 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             }
         }
 
-        // 初始化分组名数组
         this.countryGroupNames = [];
         this.customGroupNames = [];
 
-        // 确定排序：先标准国家（按 COUNTRY_DATA 顺序），再自定义（按 CUSTOM_DATA 顺序）
         const countryOrder = Object.keys(COUNTRY_DATA);
         const customOrder = Object.keys(CUSTOM_DATA);
         const sortedCountries = Object.keys(countryGroups).sort((a, b) => {
@@ -346,7 +325,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             const groupName = `${emoji} ${name}`;
             const norm = normalizeGroupName(groupName);
             if (existingTags.has(norm)) {
-                // 若已存在，仍收集组名（防止重复收集）
                 if (CUSTOM_DATA[countryCode]) {
                     this.customGroupNames.push(groupName);
                 } else {
@@ -355,10 +333,9 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
                 return;
             }
 
-            // 检查组是否可用：有手动代理 或 有 provider
             const hasMembers = (memberProxies && memberProxies.length > 0) || providerTags.length > 0;
             if (!hasMembers) {
-                return; // 跳过空组
+                return;
             }
 
             const group = {
@@ -371,14 +348,11 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
 
             if (providerTags.length > 0) {
                 group.providers = providerTags;
-                // 注意：Sing-Box 不支持 filter/exclude-filter，因此 provider 成员将全部包含
-                // 如需精确过滤，可在解析节点时预分类，或使用自定义 provider 标签
             }
 
             this.config.outbounds.push(group);
             existingTags.add(norm);
 
-            // 根据 countryCode 判断是标准国家还是自定义，分别存入
             if (CUSTOM_DATA[countryCode]) {
                 this.customGroupNames.push(groupName);
             } else {
@@ -386,7 +360,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             }
         });
 
-        // 更新 Node Select 组（若存在）
         const nodeSelectTag = this.t('outboundNames.Node Select');
         const nodeSelectGroup = this.config.outbounds.find(o => normalizeGroupName(o?.tag) === normalizeGroupName(nodeSelectTag));
         if (nodeSelectGroup && Array.isArray(nodeSelectGroup.outbounds)) {
@@ -410,11 +383,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         this.manualGroupName = manualGroupName;
     }
 
-    /**
-     * Merge user-defined proxy groups (selector/urltest outbounds) with system-generated ones
-     * Handles same-tag groups by merging outbounds/providers fields
-     * @param {Array} userGroups - User-defined proxy groups from input config (converted to Clash format)
-     */
     mergeUserProxyGroups(userGroups) {
         if (!Array.isArray(userGroups)) return;
 
@@ -422,7 +390,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         const validProxyTags = new Set(proxyList);
         const allProviderTags = new Set(this.getAllProviderTags());
 
-        // Build valid reference set (proxy tags, group tags, special names)
         const groupTags = new Set(
             (this.config.outbounds || [])
                 .filter(o => o.type === 'selector' || o.type === 'urltest')
@@ -436,16 +403,13 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         userGroups.forEach(userGroup => {
             if (!userGroup?.name) return;
 
-            // Find existing outbound by normalized tag/name
             const existingIndex = (this.config.outbounds || []).findIndex(o =>
                 normalizeGroupName(o?.tag) === normalizeGroupName(userGroup.name)
             );
 
             if (existingIndex >= 0) {
-                // Merge with existing system group
                 const existing = this.config.outbounds[existingIndex];
 
-                // Merge 'providers' field (Sing-Box uses 'providers' not 'use')
                 if (Array.isArray(userGroup.use) && userGroup.use.length > 0) {
                     const validUserProviders = userGroup.use.filter(p => allProviderTags.has(p));
                     existing.providers = [...new Set([
@@ -454,7 +418,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
                     ])];
                 }
 
-                // Merge 'outbounds' field (equivalent to Clash 'proxies')
                 if (Array.isArray(userGroup.proxies) && userGroup.proxies.length > 0) {
                     const validUserOutbounds = userGroup.proxies.filter(p => validRefs.has(p));
                     existing.outbounds = [...new Set([
@@ -463,24 +426,20 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
                     ])];
                 }
 
-                // Preserve user's custom settings
                 if (userGroup.url) existing.url = userGroup.url;
                 if (typeof userGroup.interval === 'number') {
                     existing.interval = `${userGroup.interval}s`;
                 }
             } else {
-                // New user-defined group - convert from Clash format and add
                 const newOutbound = {
                     type: userGroup.type === 'url-test' ? 'urltest' : 'selector',
                     tag: userGroup.name
                 };
 
-                // Validate outbounds references
                 if (Array.isArray(userGroup.proxies)) {
                     newOutbound.outbounds = userGroup.proxies.filter(p => validRefs.has(p));
                 }
 
-                // Validate providers references
                 if (Array.isArray(userGroup.use)) {
                     const validProviders = userGroup.use.filter(p => allProviderTags.has(p));
                     if (validProviders.length > 0) {
@@ -488,7 +447,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
                     }
                 }
 
-                // Only add if has valid outbounds or providers
                 if ((newOutbound.outbounds?.length > 0) || (newOutbound.providers?.length > 0)) {
                     this.config.outbounds.push(newOutbound);
                 }
@@ -496,23 +454,16 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         });
     }
 
-    /**
-     * Validate outbounds before final output
-     * Ensures urltest groups have outbounds, fills empty ones with all proxy tags
-     */
     validateOutbounds() {
         const proxyList = this.getProxyList();
         const providerTags = this.getAllProviderTags();
         const invalidTags = new Set();
 
         (this.config.outbounds || []).forEach(outbound => {
-            // For urltest groups, ensure they have outbounds or providers
             if (outbound.type === 'urltest' &&
                 (!outbound.outbounds || outbound.outbounds.length === 0) &&
                 (!outbound.providers || outbound.providers.length === 0)) {
-                // Fill with all available proxy tags
                 outbound.outbounds = [...proxyList];
-                // Also use all providers if available
                 if (providerTags.length > 0) {
                     outbound.providers = [...providerTags];
                 }
@@ -562,16 +513,12 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         if (REJECT_ACTION_RULES.has(rule?.outbound) || rule?.outbound === 'REJECT') {
             return { action: 'reject' };
         }
+        if (DIRECT_DEFAULT_RULES.has(rule?.outbound)) {
+            return { outbound: 'DIRECT' };
+        }
         return { outbound: this.t(`outboundNames.${rule.outbound}`) };
     }
 
-    /**
-     * Pin remote rule-set downloads to DIRECT so fetching never depends on a
-     * proxy that may not be up yet (issue #408). sing-box 1.14 deprecates both
-     * the implicit default HTTP client and the download_detour field (removed
-     * in 1.16, issue #401), so >=1.14 gets an explicit shared HTTP client
-     * while older versions get the legacy per-rule-set field.
-     */
     configureRuleSetDownload() {
         if (this.singboxVersion === '1.14') {
             if (this.config.route.default_http_client) {
@@ -590,21 +537,140 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
         });
     }
 
+    /**
+     * 广告拦截的 DNS 规则：
+     *
+     * 一、规则选择中勾选 "Ad Block"（显示为 🛑 广告拦截）：
+     *     dns.rules 添加一条 { rule_set: ['category-ads-all'], action: 'predefined', rcode: 'NOERROR' }
+     *
+     * 二、自定义规则中出站名称为 "Ad Block" 或 "🛑 广告拦截"：
+     *     按每条自定义规则生成一条 dns 规则，携带该规则的 domain_suffix / domain_keyword / site 等字段。
+     *     site 字段映射到 rule_set。
+     *
+     * 三、一、二同时成立时：
+     *     把 'category-ads-all' 合并进「二」生成的 rule_set；
+     *     若「二」的 rule_set 为空，则补上 rule_set: ['category-ads-all']。
+     *
+     * 注意：route.rules 里不会出现 Ad Block 相关条目（在 formatConfig 中过滤掉了）。
+     */
+    configureAdBlockDnsRules() {
+        if (!this.config?.dns || !Array.isArray(this.config.dns.rules)) return;
+
+        // 1. 先清理所有已存在的 category-ads-all 规则
+        this.config.dns.rules = this.config.dns.rules.filter(rule => {
+            const rs = rule?.rule_set;
+            if (Array.isArray(rs)) return !rs.includes('category-ads-all');
+            if (typeof rs === 'string') return rs !== 'category-ads-all';
+            return true;
+        });
+
+        // 2. 判断条件
+        const outbounds = this.getOutboundsList();
+        const fromSelected = Array.isArray(outbounds) && outbounds.includes('Ad Block');
+
+        const matchedCustomRules = Array.isArray(this.customRules)
+            ? this.customRules.filter(r => AD_BLOCK_OUTBOUND_NAMES.has(r?.name))
+            : [];
+        const fromCustom = matchedCustomRules.length > 0;
+
+        if (!fromSelected && !fromCustom) return;
+
+        // 3. 构建新的 dns 规则
+        const newRules = [];
+
+        if (fromCustom) {
+            // 二：按每条自定义规则生成 dns 规则
+            matchedCustomRules.forEach(cr => {
+                const dnsRule = { action: 'predefined', rcode: 'NOERROR' };
+
+                const domainSuffix = toStringArray(cr.domain_suffix);
+                const domainKeyword = toStringArray(cr.domain_keyword);
+                const siteList = toStringArray(cr.site);
+
+                if (domainSuffix.length) dnsRule.domain_suffix = domainSuffix;
+                if (domainKeyword.length) dnsRule.domain_keyword = domainKeyword;
+
+                // 三：一、二同时成立时，把 category-ads-all 合并进去
+                const ruleSet = [...siteList];
+                if (fromSelected) ruleSet.push('category-ads-all');
+                if (ruleSet.length) dnsRule.rule_set = ruleSet;
+
+                newRules.push(dnsRule);
+            });
+        } else if (fromSelected) {
+            // 一：只有规则选择
+            newRules.push({
+                rule_set: ['category-ads-all'],
+                action: 'predefined',
+                rcode: 'NOERROR'
+            });
+        }
+
+        if (newRules.length === 0) return;
+
+        // 4. 插到所有 clash_mode 规则之后
+        let insertIdx = 0;
+        this.config.dns.rules.forEach((r, i) => {
+            if (r?.clash_mode) insertIdx = i + 1;
+        });
+        this.config.dns.rules.splice(insertIdx, 0, ...newRules);
+    }
+
+    /**
+     * 把 form 里的 fakeIpFilterDomains 合并到 dns.rules 中
+     * rule_set 包含 'cn' 或 'geolocation-cn' 的那条规则的 domain_suffix。
+     * 该规则原本会让这些域名走 local 解析（不用 fakeip），
+     * 加上自定义域名后，用户输入的域名也会走 local。
+     */
+    applyFakeIpFilterDomains() {
+        if (!this.fakeIpFilterDomains || !this.fakeIpFilterDomains.trim()) return;
+        if (!this.config?.dns || !Array.isArray(this.config.dns.rules)) return;
+
+        const extras = this.fakeIpFilterDomains
+            .split(',')
+            .map(d => d.trim())
+            .filter(Boolean);
+        if (extras.length === 0) return;
+
+        // 找到包含 geolocation-cn 或 cn 的规则（不修改原数组结构）
+        const target = this.config.dns.rules.find(rule => {
+            const rs = rule?.rule_set;
+            if (!Array.isArray(rs)) return false;
+            return rs.includes('geolocation-cn') || rs.includes('cn');
+        });
+
+        if (target) {
+            // 把 extras 合并进这条规则的 domain_suffix（去重）
+            const existing = Array.isArray(target.domain_suffix) ? target.domain_suffix : [];
+            target.domain_suffix = [...new Set([...existing, ...extras])];
+        } else {
+            // 兜底：没找到目标规则时，退化为插一条独立规则
+            this.config.dns.rules.push({
+                rule_set: ['geolocation-cn', 'cn'],
+                domain_suffix: extras,
+                server: 'local'
+            });
+        }
+    }
+
     formatConfig() {
-        const rules = generateRules(this.selectedRules, this.customRules);
+        const allRules = generateRules(this.selectedRules, this.customRules);
+        // route.rules 里不出现 Ad Block / 🛑 广告拦截 相关条目（这些交给 DNS 层处理）
+        const rules = allRules.filter(r => !AD_BLOCK_OUTBOUND_NAMES.has(r.outbound));
+
         const { site_rule_sets, ip_rule_sets } = generateRuleSets(this.selectedRules, this.customRules);
 
         this.config.route.rule_set = [...site_rule_sets, ...ip_rule_sets];
         this.configureRuleSetDownload();
+        this.configureAdBlockDnsRules();
+        this.applyFakeIpFilterDomains();
 
-        // Add outbound_providers if we have any
         if (this.providerUrls.length > 0) {
             const existingProviders = Array.isArray(this.config.outbound_providers) ? this.config.outbound_providers : [];
             const newProviders = this.generateOutboundProviders();
             this.config.outbound_providers = [...existingProviders, ...newProviders];
         }
 
-        // Validate outbounds: fill empty urltest groups with all proxies
         this.validateOutbounds();
         this.sanitizeLegacySpecialOutbounds();
 
@@ -667,10 +733,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
             }, rule));
         });
 
-        // Order matters: sniff first so downstream rules can match on protocol;
-        // hijack-dns before clash_mode so DNS never escapes into a selector when
-        // the user toggles global mode (selectors only support TCP+UDP if the
-        // currently selected node does, which is fragile).
         this.config.route.rules.unshift(
             { action: 'sniff' },
             { protocol: 'dns', action: 'hijack-dns' },
@@ -680,8 +742,6 @@ export class SingboxConfigBuilder extends BaseConfigBuilder {
 
         this.config.route.auto_detect_interface = true;
         this.config.route.final = this.t('outboundNames.Fall Back');
-        // 如果启用了 Clash UI，添加配置
-        // 如果启用 Clash UI 或传入了自定义参数，添加/覆盖 Clash API 配置
         if (this.enableClashUI || this.externalController || this.externalUiDownloadUrl) {
             const defaultExternalController = "0.0.0.0:9090";
             const defaultExternalUiDownloadUrl = "https://gh-proxy.com/https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip";

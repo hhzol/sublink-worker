@@ -48,7 +48,7 @@ function getClashUdpValue(proxy, defaultEnabled = true) {
 }
 
 export class ClashConfigBuilder extends BaseConfigBuilder {
-    constructor(inputString, selectedRules, customRules, baseConfig, lang, userAgent, groupByCountry = false, enableClashUI = false, externalController, externalUiDownloadUrl, includeAutoSelect = true) {
+    constructor(inputString, selectedRules, customRules, baseConfig, lang, userAgent, groupByCountry = false, enableClashUI = false, externalController, externalUiDownloadUrl, includeAutoSelect = true, fakeIpFilterDomains = '') {
         if (!baseConfig) {
             baseConfig = CLASH_CONFIG;
         }
@@ -61,6 +61,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
         this.enableClashUI = enableClashUI;
         this.externalController = externalController;
         this.externalUiDownloadUrl = externalUiDownloadUrl;
+        this.fakeIpFilterDomains = fakeIpFilterDomains;
     }
 
     /**
@@ -402,6 +403,9 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
     addOutboundGroups(outbounds, proxyList) {
         outbounds.forEach(outbound => {
             if (outbound !== this.t('outboundNames.Node Select')) {
+
+                if (DIRECT_DEFAULT_RULES.has(outbound)) return;
+                
                 const name = this.t(`outboundNames.${outbound}`);
                 if (!this.hasProxyGroup(name)) {
                     let proxies = this.buildSelectGroupMembers(proxyList, name);
@@ -437,23 +441,34 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
             this.customRules.forEach(rule => {
                 const name = this.t(`outboundNames.${rule.name}`);
                 if (!this.hasProxyGroup(name)) {
-                    const proxies = buildCustomRuleMembers({
-                        translator: this.t,
-                        manualGroupName: this.manualGroupName,
-                        countryGroupNames: this.countryGroupNames,
-                        customGroupNames: this.customGroupNames,
-                        includeAutoSelect: this.shouldIncludeAutoSelectGroup(proxyList)
-                    });
+                    const isReject = REJECT_ACTION_RULES.has(rule.name);
+
+                    let proxies;
+                    if (isReject) {
+                        proxies = ['REJECT', 'DIRECT', this.t('outboundNames.Node Select')];
+                    } else {
+                        proxies = buildCustomRuleMembers({
+                            translator: this.t,
+                            manualGroupName: this.manualGroupName,
+                            countryGroupNames: this.countryGroupNames,
+                            customGroupNames: this.customGroupNames,
+                            includeAutoSelect: this.shouldIncludeAutoSelectGroup(proxyList)
+                        });
+                    }
+
                     const group = {
                         type: "select",
                         name,
                         proxies
                     };
-                    // Add 'use' field if we have proxy-providers
-                    const providerNames = this.getAllProviderNames();
-                    if (providerNames.length > 0) {
-                        group.use = providerNames;
+
+                    if (!isReject) {
+                        const providerNames = this.getAllProviderNames();
+                        if (providerNames.length > 0) {
+                            group.use = providerNames;
+                        }
                     }
+
                     this.config['proxy-groups'].push(group);
                 }
             });
@@ -720,9 +735,30 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
     }
 
     formatConfig() {
+
+        // 注入 fake-ip-filter 额外域名
+        if (this.fakeIpFilterDomains) {
+            const extras = this.fakeIpFilterDomains
+                .split(',')
+                .map(d => d.trim())
+                .filter(Boolean);
+            if (extras.length > 0) {
+                this.config.dns = this.config.dns || {};
+                const existing = Array.isArray(this.config.dns['fake-ip-filter'])
+                    ? this.config.dns['fake-ip-filter']
+                    : [];
+                this.config.dns['fake-ip-filter'] = [...new Set([...existing, ...extras])];
+            }
+        }
+
         const rules = this.generateRules();
         const useMrs = supportsMrsFormat(this.userAgent);
-        const { site_rule_providers, ip_rule_providers } = generateClashRuleSets(this.selectedRules, this.customRules, useMrs);
+        const { site_rule_providers, ip_rule_providers } = generateClashRuleSets(
+            this.selectedRules,
+            this.customRules,
+            useMrs,
+            this.customSiteBaseUrl
+        );
         this.config['rule-providers'] = {
             ...site_rule_providers,
             ...ip_rule_providers

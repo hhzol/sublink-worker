@@ -106,6 +106,14 @@ export const translations = {
     invalidJSON: '无效的JSON格式',
     allJSONValid: '所有JSON规则都有效！',
     jsonValidationErrors: 'JSON验证错误',
+    fakeIpFilterDomains: 'Fake-IP 过滤域名',
+    fakeIpFilterDomainsPlaceholder: 'example.com,test.com,*.mydomain.net',
+    fakeIpFilterDomainsHint: '逗号分隔，会追加到 dns.fake-ip-filter',
+    customRuleSiteBaseUrl: 'Geo-Site 规则集 自定义 Base URL',
+    customRuleSiteBaseUrlPlaceholder: 'https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/',
+    customRuleSiteBaseUrlHint: '留空使用默认源。填写后这条规则引用的规则集会从这里拉取, 扩展名 Clash 会拼 .yaml，Sing-box 会拼 .json',
+    customRuleSiteBaseUrlTooltip: '只影响本规则引用的 site 规则集；Clash 会拼 .yaml，Sing-box 会拼 .json',
+
     // 规则名称和出站名称的翻译
     outboundNames: {
       'Auto Select': '⚡ 自动选择',

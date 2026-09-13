@@ -85,7 +85,7 @@ export function createApp(bindings = {}) {
             const externalUiDownloadUrl = c.req.query('external_ui_download_url');
             const configId = c.req.query('configId');
             const lang = c.get('lang');
-
+            const fakeIpFilterDomains = c.req.query('fake_ip_filter') || ''; 
             const requestedSingboxVersion = c.req.query('singbox_version') || c.req.query('sb_version') || c.req.query('sb_ver');
             const requestUserAgent = getRequestHeader(c.req, 'User-Agent');
             const singboxConfigVersion = resolveSingboxConfigVersion(requestedSingboxVersion, requestUserAgent);
@@ -111,7 +111,8 @@ export function createApp(bindings = {}) {
                 externalController,
                 externalUiDownloadUrl,
                 singboxConfigVersion,
-                includeAutoSelect
+                includeAutoSelect,
+                fakeIpFilterDomains
             );
             await builder.build();
             const userinfo = builder.getSubscriptionUserinfo();
@@ -141,6 +142,7 @@ export function createApp(bindings = {}) {
             const externalUiDownloadUrl = c.req.query('external_ui_download_url');
             const configId = c.req.query('configId');
             const lang = c.get('lang');
+            const fakeIpFilterDomains = c.req.query('fake_ip_filter') || '';
 
             let baseConfig;
             if (configId) {
@@ -159,7 +161,8 @@ export function createApp(bindings = {}) {
                 enableClashUI,
                 externalController,
                 externalUiDownloadUrl,
-                includeAutoSelect
+                includeAutoSelect,
+                fakeIpFilterDomains
             );
             await builder.build();
             const userinfo = builder.getSubscriptionUserinfo();

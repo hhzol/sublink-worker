@@ -14,7 +14,6 @@ export const SING_BOX_CONFIG = {
         rules: [
             {"clash_mode": "direct", "server": "local"},
             {"clash_mode": "global", "server": "fakeip"},
-            {"rule_set": ["category-ads-all"], "action": "predefined", "rcode": "NOERROR"},
             {"rule_set": ["geolocation-cn", "cn"], "server": "local"},
             {"query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1}
         ],

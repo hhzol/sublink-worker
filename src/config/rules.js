@@ -32,16 +32,6 @@ export const UNIFIED_RULES = [
 		ip_rules: ['google']
 	},
 	{
-		name: 'Private',
-		site_rules: [],
-		ip_rules: ['private']
-	},
-	{
-		name: 'Location:CN',
-		site_rules: ['geolocation-cn', 'cn'],
-		ip_rules: ['cn']
-	},
-	{
 		name: 'Telegram',
 		site_rules: [],
 		ip_rules: ['telegram']
@@ -95,12 +85,22 @@ export const UNIFIED_RULES = [
 		name: 'Non-China',
 		site_rules: ['geolocation-!cn'],
 		ip_rules: []
+	},
+	{
+		name: 'Private',
+		site_rules: [],
+		ip_rules: ['private']
+	},
+	{
+		name: 'Location:CN',
+		site_rules: ['geolocation-cn', 'cn'],
+		ip_rules: ['cn']
 	}
 ];
 
 // Rule names that should default to DIRECT instead of Node Select
 export const DIRECT_DEFAULT_RULES = new Set(['Private', 'Location:CN']);
-export const REJECT_ACTION_RULES = new Set(['Ad Block']);
+export const REJECT_ACTION_RULES = new Set(['Ad Block', '🛑 广告拦截']);
 export const AI_RULES = new Set(['AI Services']);
 
 export const PREDEFINED_RULE_SETS = {

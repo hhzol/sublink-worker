@@ -18,6 +18,14 @@ function toStringArray(value) {
 	return [];
 }
 
+// Normalize a per-rule custom base URL: trim and guarantee trailing slash.
+function normalizeCustomBase(baseUrl) {
+	if (typeof baseUrl !== 'string') return '';
+	const trimmed = baseUrl.trim();
+	if (!trimmed) return '';
+	return trimmed.endsWith('/') ? trimmed : trimmed + '/';
+}
+
 // Helper function to get outbounds based on selected rule names
 export function getOutbounds(selectedRuleNames) {
 	if (!selectedRuleNames || !Array.isArray(selectedRuleNames)) {
@@ -69,6 +77,13 @@ export function generateRules(selectedRules = [], customRules = []) {
 	return rules;
 }
 
+/**
+ * Generate rule sets for sing-box.
+ * Per-rule custom base URL: if a customRule has a non-empty `site_base_url`,
+ * only the site rule sets referenced by that rule use the custom base and
+ * are fetched as `.json` with format 'source'. IP rule sets always use the
+ * default base.
+ */
 export function generateRuleSets(selectedRules = [], customRules = []) {
 	if (typeof selectedRules === 'string' && PREDEFINED_RULE_SETS[selectedRules]) {
 		selectedRules = PREDEFINED_RULE_SETS[selectedRules];
@@ -117,12 +132,19 @@ export function generateRuleSets(selectedRules = [], customRules = []) {
 
 	if (customRules) {
 		customRules.forEach(rule => {
+			const customBase = normalizeCustomBase(rule?.site_base_url);
+			const useCustom = customBase !== '';
+			const siteFormat = useCustom ? 'source' : 'binary';
+			const siteExt = useCustom ? '.json' : '.srs';
+
 			toStringArray(rule.site).forEach(site => {
 				site_rule_sets.push({
 					tag: site,
 					type: 'remote',
-					format: 'binary',
-					url: `${SITE_RULE_SET_BASE_URL}${site}.srs`,
+					format: siteFormat,
+					url: useCustom
+						? `${customBase}${site}${siteExt}`
+						: `${SITE_RULE_SET_BASE_URL}${site}.srs`,
 				});
 			});
 			toStringArray(rule.ip).forEach(ip => {
@@ -141,7 +163,12 @@ export function generateRuleSets(selectedRules = [], customRules = []) {
 	return { site_rule_sets, ip_rule_sets };
 }
 
-// Generate rule sets for Clash using .mrs format
+/**
+ * Generate rule sets for Clash using .mrs format.
+ * Per-rule custom base URL: if a customRule has a non-empty `site_base_url`,
+ * its site rule providers are fetched from that base with `.yaml` extension
+ * and format 'yaml'. IP rule providers always use the default base.
+ */
 export function generateClashRuleSets(selectedRules = [], customRules = [], useMrs = true) {
 	if (typeof selectedRules === 'string' && PREDEFINED_RULE_SETS[selectedRules]) {
 		selectedRules = PREDEFINED_RULE_SETS[selectedRules];
@@ -207,13 +234,20 @@ export function generateClashRuleSets(selectedRules = [], customRules = [], useM
 	// Add custom rules
 	if (customRules) {
 		customRules.forEach(rule => {
+			const customBase = normalizeCustomBase(rule?.site_base_url);
+			const useCustom = customBase !== '';
+			const siteFormat = useCustom ? 'yaml' : format;
+			const siteExt = useCustom ? '.yaml' : ext;
+
 			toStringArray(rule.site).forEach(site => {
 				site_rule_providers[site] = {
 					type: 'http',
-					format: format,
+					format: siteFormat,
 					behavior: 'domain',
-					url: `${CLASH_SITE_RULE_SET_BASE_URL}${site}${ext}`,
-					path: `./ruleset/${site}${ext}`,
+					url: useCustom
+						? `${customBase}${site}${siteExt}`
+						: `${CLASH_SITE_RULE_SET_BASE_URL}${site}${ext}`,
+					path: `./ruleset/${site}${siteExt}`,
 					interval: 86400
 				};
 			});

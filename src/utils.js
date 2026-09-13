@@ -348,18 +348,18 @@ export function parseArray(value) {
 		.filter(entry => entry.length > 0);	
 }
 export const CUSTOM_DATA = {
-	'cloudflare': { name: 'cloudflare', emoji: '🌥️', aliases: ['cloudflare'] },
 	'airport': { name: '机场节点', emoji: '🎯', aliases: ['B Group'] },
+	'cloudflare': { name: 'cloudflare', emoji: '🌥️', aliases: ['cloudflare'] },
 	'ipv6': { name: 'CMCC-IPV6', emoji: '🖁', aliases: ['ipv6'] },
 	'nonhk': { name: '非香港节点', emoji: '🎱', aliases: ['B Group'], exclude: ['HongKong'] },
 };
 export const COUNTRY_DATA = {
-	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'Hong Kong', 'HK'] },
+	'HK': { name: 'Hong Kong', emoji: '🇭🇰', aliases: ['香港', 'HongKong', 'HK'] },
 	'TW': { name: 'Taiwan', emoji: '🇹🇼', aliases: ['台湾', 'Taiwan', 'TW'] },
-	'JP': { name: 'Japan', emoji: '🇯🇵', aliases: ['日本', 'Japan', 'JP'] },
-	'KR': { name: 'Korea', emoji: '🇰🇷', aliases: ['韩国', 'Korea', 'KR'] },
+	'JP': { name: 'Japan', emoji: '🇯🇵', aliases: ['日本', 'Japan', 'JP', 'Tokyo', '剩余流量'] },
+	'KR': { name: 'Korea', emoji: '🇰🇷', aliases: ['韩国', 'Korea', 'KR', 'Incheon'] },
 	'SG': { name: 'Singapore', emoji: '🇸🇬', aliases: ['新加坡', 'Singapore', 'SG'] },
-	'US': { name: 'United States', emoji: '🇺🇸', aliases: ['美国', 'United States', 'US'] },
+	'US': { name: 'United States', emoji: '🇺🇸', aliases: ['美国', 'United States', 'US', 'California', 'Oregon'] },
 	'GB': { name: 'United Kingdom', emoji: '🇬🇧', aliases: ['英国', 'United Kingdom', 'UK', 'GB'] },
 	'DE': { name: 'Germany', emoji: '🇩🇪', aliases: ['德国', 'Germany'] },
 	'FR': { name: 'France', emoji: '🇫🇷', aliases: ['法国', 'France'] },
